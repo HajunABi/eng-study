@@ -373,7 +373,7 @@ function renderLearnPreview() {
                 <div class="preview-en">${card.en}</div>
                 <div class="preview-ko">${card.ko}</div>
             </div>
-            <button class="tts-btn" onclick="speak('${card.en.replace(/'/g, "\\'")}')">
+            <button class="tts-btn" onclick="speak(${card.id}, '${card.en.replace(/'/g, "\\'")}')">
                 🔊
             </button>
         `;
@@ -795,7 +795,7 @@ function showTestQuestion() {
 
     if (q.type === 'listening') {
         document.getElementById('quiz-listening').style.display = '';
-        speak(q.sentence.en);
+        speak(q.sentence.id, q.sentence.en);
 
         const optionsDiv = document.getElementById('quiz-listening-options');
         optionsDiv.innerHTML = '';
@@ -1016,7 +1016,7 @@ function renderStarredList() {
                 <div class="preview-en">${card.en}</div>
                 <div class="preview-ko">${card.ko}</div>
             </div>
-            <button class="tts-btn" onclick="speak('${card.en.replace(/'/g, "\\'")}')">
+            <button class="tts-btn" onclick="speak(${card.id}, '${card.en.replace(/'/g, "\\'")}')">
                 🔊
             </button>
             <button class="icon-btn star-btn active" data-id="${card.id}" onclick="toggleStar(${card.id}, event)" style="margin-left: 8px; font-size: 20px;">
