@@ -1,0 +1,1254 @@
+// ==========================================
+// EPS 컨퍼런스콜 영어 마스터 - 메인 앱 로직
+// ==========================================
+
+// ---- Storage Keys ----
+const STORAGE_KEY = 'eps_eng_master';
+
+// ---- App State ----
+let appState = {
+    progress: {},      // { sentenceId: { box: 1-5, lastReview: dateStr, wrongCount: 0 } }
+    streak: 0,
+    lastStudyDate: null,
+    testHistory: [],
+    starredSentences: [] // 즐겨찾기 보관함
+};
+
+// ---- Current Session State ----
+let currentLearnDay = null;
+let currentLearnCards = [];
+let currentLearnIndex = 0;
+let learnKnown = 0;
+let learnUnknown = 0;
+let isCardFlipped = false;
+
+let reviewCards = [];
+let reviewIndex = 0;
+let reviewCorrect = 0;
+let reviewWrong = 0;
+let isReviewFlipped = false;
+
+// ---- Swipe Gesture State ----
+let touchStartX = 0;
+let touchCurrentX = 0;
+let isSwiping = false;
+let clickBlockedBySwipe = false; // 제스처 중 카드 뒤집힘(click) 방지 플래그
+const SWIPE_THRESHOLD = 90; // 스와이프 판정 임계값(px)
+
+let testType = 'listening';
+let testDays = [0]; // 0 = all
+let testCount = 20;
+let testQuestions = [];
+let testIndex = 0;
+let testScore = 0;
+let testWrongList = [];
+
+// ---- Initialize ----
+document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    updateStreak();
+    renderHome();
+    renderLearnDaySelect();
+    renderTestDayChips();
+    addSVGGradient();
+});
+
+// ---- Storage ----
+function loadState() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            appState = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.log('Failed to load state:', e);
+    }
+}
+
+function saveState() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    } catch (e) {
+        console.log('Failed to save state:', e);
+    }
+}
+
+// ---- Streak ----
+function updateStreak() {
+    const today = getToday();
+    if (appState.lastStudyDate === today) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = formatDate(yesterday);
+
+    if (appState.lastStudyDate === yesterdayStr) {
+        // Streak continues
+    } else if (appState.lastStudyDate !== today) {
+        appState.streak = 0;
+    }
+}
+
+function recordStudyToday() {
+    const today = getToday();
+    if (appState.lastStudyDate !== today) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (appState.lastStudyDate === formatDate(yesterday)) {
+            appState.streak++;
+        } else {
+            appState.streak = 1;
+        }
+        appState.lastStudyDate = today;
+    }
+    saveState();
+}
+
+// ---- Date Helpers ----
+function getToday() {
+    return formatDate(new Date());
+}
+
+function formatDate(d) {
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+}
+
+function daysSince(dateStr) {
+    if (!dateStr) return 999;
+    const then = new Date(dateStr);
+    const now = new Date();
+    return Math.floor((now - then) / (1000 * 60 * 60 * 24));
+}
+
+// ---- Spaced Repetition (Leitner) ----
+const BOX_INTERVALS = { 1: 0, 2: 2, 3: 4, 4: 7, 5: 30 };
+
+function getProgress(id) {
+    if (!appState.progress[id]) {
+        return { box: 0, lastReview: null, wrongCount: 0 };
+    }
+    return appState.progress[id];
+}
+
+function setProgress(id, box, isCorrect) {
+    if (!appState.progress[id]) {
+        appState.progress[id] = { box: 1, lastReview: getToday(), wrongCount: 0 };
+    }
+
+    if (isCorrect) {
+        appState.progress[id].box = Math.min(5, box + 1);
+    } else {
+        appState.progress[id].box = 1;
+        appState.progress[id].wrongCount = (appState.progress[id].wrongCount || 0) + 1;
+    }
+    appState.progress[id].lastReview = getToday();
+    saveState();
+}
+
+function initSentenceProgress(id) {
+    if (!appState.progress[id]) {
+        appState.progress[id] = { box: 1, lastReview: getToday(), wrongCount: 0 };
+        saveState();
+    }
+}
+
+function isDueForReview(id) {
+    const prog = getProgress(id);
+    if (prog.box === 0) return false;
+    if (prog.box >= 5) return false;
+    const interval = BOX_INTERVALS[prog.box] || 0;
+    return daysSince(prog.lastReview) >= interval;
+}
+
+function getReviewCards() {
+    const due = [];
+    for (const idStr in appState.progress) {
+        const id = parseInt(idStr);
+        const prog = appState.progress[id];
+        if (prog.box >= 1 && prog.box < 5) {
+            const interval = BOX_INTERVALS[prog.box] || 0;
+            if (daysSince(prog.lastReview) >= interval) {
+                due.push(SENTENCES.find(s => s.id === id));
+            }
+        }
+    }
+    return due.filter(Boolean).sort(() => Math.random() - 0.5);
+}
+
+// ---- Audio & TTS (AI Voice + Fallback) ----
+let currentAudio = null;
+
+function speak(id, textFallback, lang = 'en-US') {
+    // 1. 기존 재생 중인 MP3 중지
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+    }
+    // 2. 기존 브라우저 TTS 중지
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+
+    // 파일 로컬 경로
+    const audioPath = `audio/${id}.mp3`;
+    currentAudio = new Audio(audioPath);
+
+    // 성공적으로 로드된 경우 재생
+    currentAudio.play().catch(e => {
+        // 재생 실패 (파일 없음, 브라우저 정책 막힘 등) -> 기존 Web Speech API로 폴백
+        console.warn(`[Audio] Failed to play MP3 for ID ${id}. Fallback to basic TTS.`, e);
+        if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(textFallback);
+            u.lang = lang;
+            u.rate = 0.85; // 천천히 읽기
+            u.pitch = 1;
+            window.speechSynthesis.speak(u);
+        }
+    });
+}
+
+function speakEnglish() {
+    const card = currentLearnCards[currentLearnIndex];
+    if (card) speak(card.id, card.en);
+}
+
+function speakReviewEnglish() {
+    const card = reviewCards[reviewIndex];
+    if (card) speak(card.id, card.en);
+}
+
+function speakTestEnglish() {
+    if (testQuestions[testIndex]) speak(testQuestions[testIndex].sentence.id, testQuestions[testIndex].sentence.en);
+}
+
+// ---- Navigation ----
+function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const activeNav = document.querySelector(`.nav-btn[data-screen="${name}"]`);
+    if (activeNav) activeNav.classList.add('active');
+
+    window.scrollTo(0, 0);
+
+    if (name === 'home') renderHome();
+    if (name === 'review') initReview();
+    if (name === 'stats') renderStats();
+    if (name === 'starred') renderStarredList();
+    if (name === 'learn') {
+        renderLearnDaySelect();
+        document.getElementById('learn-day-select').style.display = '';
+        document.getElementById('learn-card-view').style.display = 'none';
+        document.getElementById('learn-complete').style.display = 'none';
+        document.getElementById('learn-title').textContent = '학습';
+    }
+    if (name === 'test') {
+        // Keep test setup if not in progress
+    }
+}
+
+// ---- Unique Days ----
+function getUniqueDays() {
+    const days = [...new Set(SENTENCES.map(s => s.day))].sort((a, b) => a - b);
+    return days;
+}
+
+function getSentencesByDay(day) {
+    return SENTENCES.filter(s => s.day === day);
+}
+
+// ---- Home Screen ----
+function renderHome() {
+    const days = getUniqueDays();
+    const totalSentences = SENTENCES.length;
+
+    // Count mastered (box 5)
+    let mastered = 0;
+    let studied = 0;
+    for (const id in appState.progress) {
+        if (appState.progress[id].box >= 5) mastered++;
+        if (appState.progress[id].box >= 1) studied++;
+    }
+
+    // Review count
+    const reviewCount = getReviewCards().length;
+
+    document.getElementById('home-total-mastered').textContent = mastered;
+    document.getElementById('home-master-bar').style.width =
+        (totalSentences > 0 ? (mastered / totalSentences * 100) : 0) + '%';
+    document.getElementById('home-review-count').textContent = reviewCount;
+    document.getElementById('home-streak').innerHTML = appState.streak + '<span class="stat-unit">일</span>';
+
+    // 마스터 문장 카드 클릭 → 마스터 문장 목록 화면으로
+    const masterCard = document.querySelector('.stat-total');
+    if (masterCard) {
+        masterCard.style.cursor = mastered > 0 ? 'pointer' : 'default';
+        masterCard.onclick = mastered > 0 ? () => showMasteredList() : null;
+    }
+
+    // Day list
+    const dayList = document.getElementById('home-day-list');
+    dayList.innerHTML = '';
+
+    days.forEach(day => {
+        const sentences = getSentencesByDay(day);
+        const dayStudied = sentences.filter(s => appState.progress[s.id] && appState.progress[s.id].box >= 1).length;
+        const percent = Math.round(dayStudied / sentences.length * 100);
+
+        const dayName = DAY_NAMES[day] || `Day ${day}`;
+        const dayNameEn = DAY_NAMES_EN[day] || '';
+
+        const div = document.createElement('div');
+        div.className = 'day-item';
+        div.onclick = () => startLearnDay(day);
+        div.innerHTML = `
+      <div class="day-badge day-badge-${day}">D${day}</div>
+      <div class="day-info">
+        <div class="day-title">${dayName}</div>
+        <div class="day-subtitle">${dayNameEn} · ${sentences.length}문장</div>
+      </div>
+      <div class="day-progress-mini">${percent}%</div>
+    `;
+        dayList.appendChild(div);
+    });
+}
+
+// ---- Learn Screen ----
+function renderLearnDaySelect() {
+    const days = getUniqueDays();
+    const grid = document.getElementById('learn-day-select');
+    grid.innerHTML = '';
+
+    days.forEach(day => {
+        const sentences = getSentencesByDay(day);
+        const dayName = DAY_NAMES[day] || `Day ${day}`;
+
+        const card = document.createElement('div');
+        card.className = 'day-select-card';
+        card.onclick = () => startLearnDay(day);
+        card.innerHTML = `
+      <div class="day-num">Day ${day}</div>
+      <div class="day-name">${dayName}</div>
+      <div class="day-count">${sentences.length}문장</div>
+    `;
+        grid.appendChild(card);
+    });
+}
+
+function startLearnDay(day) {
+    showScreen('learn');
+    currentLearnDay = day;
+    currentLearnCards = getSentencesByDay(day).sort(() => Math.random() - 0.5);
+    currentLearnIndex = 0;
+    learnKnown = 0;
+    learnUnknown = 0;
+    isCardFlipped = false;
+
+    document.getElementById('learn-day-select').style.display = 'none';
+    document.getElementById('learn-preview-view').style.display = '';
+    document.getElementById('learn-card-view').style.display = 'none';
+    document.getElementById('learn-complete').style.display = 'none';
+
+    const dayName = DAY_NAMES[day] || `Day ${day}`;
+    document.getElementById('learn-title').textContent = `📖 ${dayName} - 사전학습`;
+
+    renderLearnPreview();
+}
+
+function renderLearnPreview() {
+    const list = document.getElementById('preview-list');
+    list.innerHTML = '';
+
+    const sortedCards = [...currentLearnCards].sort((a, b) => a.id - b.id);
+
+    sortedCards.forEach((card, idx) => {
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.innerHTML = `
+            <div class="preview-num">${idx + 1}</div>
+            <div class="preview-text">
+                <div class="preview-en">${card.en}</div>
+                <div class="preview-ko">${card.ko}</div>
+            </div>
+            <button class="tts-btn" onclick="speak('${card.en.replace(/'/g, "\\'")}')">
+                🔊
+            </button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function startLearnFlashcards() {
+    document.getElementById('learn-preview-view').style.display = 'none';
+    document.getElementById('learn-card-view').style.display = '';
+
+    document.getElementById('learn-title').textContent = `Day ${currentLearnDay} 플래시카드`;
+    document.getElementById('learn-total').textContent = currentLearnCards.length;
+
+    showLearnCard();
+    recordStudyToday();
+}
+
+
+function startQuickLearn() {
+    // Start with first day that has unlearned sentences, or review
+    const days = getUniqueDays();
+    for (const day of days) {
+        const sentences = getSentencesByDay(day);
+        const unlearned = sentences.filter(s => !appState.progress[s.id] || appState.progress[s.id].box === 0);
+        if (unlearned.length > 0) {
+            startLearnDay(day);
+            return;
+        }
+    }
+    // All learned, go to review
+    showScreen('review');
+}
+
+function showLearnCard() {
+    if (currentLearnIndex >= currentLearnCards.length) {
+        showLearnComplete();
+        return;
+    }
+
+    const card = currentLearnCards[currentLearnIndex];
+    isCardFlipped = false;
+
+    document.getElementById('card-front').style.display = '';
+    document.getElementById('card-back').style.display = 'none';
+    document.getElementById('card-number').textContent = `#${card.id}`;
+    document.getElementById('card-korean').textContent = card.ko;
+    document.getElementById('card-number-back').textContent = `#${card.id}`;
+    document.getElementById('card-english').textContent = card.en;
+    document.getElementById('card-korean-back').textContent = card.ko;
+
+    document.getElementById('learn-current').textContent = currentLearnIndex + 1;
+
+    const progress = ((currentLearnIndex) / currentLearnCards.length) * 100;
+    document.getElementById('learn-progress-bar').style.width = progress + '%';
+
+    // 별표 상태 업데이트
+    updateStarUI(card.id);
+
+    // Animate card
+    const cardEl = document.getElementById('learn-card');
+    cardEl.style.animation = 'none';
+    cardEl.offsetHeight; // trigger reflow
+    cardEl.style.animation = 'fadeIn 0.3s ease';
+}
+
+function flipCard() {
+    if (clickBlockedBySwipe) return; // 스와이프 도중 또는 직후에는 뒤집기(클릭) 이벤트 차단
+    isCardFlipped = !isCardFlipped;
+    document.getElementById('card-front').style.display = isCardFlipped ? 'none' : '';
+    document.getElementById('card-back').style.display = isCardFlipped ? '' : 'none';
+
+    if (isCardFlipped) {
+        const card = currentLearnCards[currentLearnIndex];
+        speak(card.id, card.en);
+    }
+}
+
+function markCard(known) {
+    const card = currentLearnCards[currentLearnIndex];
+    initSentenceProgress(card.id);
+
+    if (known) {
+        learnKnown++;
+        setProgress(card.id, getProgress(card.id).box, true);
+    } else {
+        learnUnknown++;
+        setProgress(card.id, getProgress(card.id).box, false);
+    }
+
+    currentLearnIndex++;
+    showLearnCard();
+}
+
+// ---- Swipe Gesture Logic ----
+// cardElementId: 카드 element id
+// markFunction: 알아요/몰라요 처리 함수 (true/false)
+// flipFunction: 카드 뒤집기 함수 (탭 시 호출)
+function initSwipeListeners(cardElementId, markFunction, flipFunction) {
+    const cardEl = document.getElementById(cardElementId);
+    if (!cardEl) return;
+
+    let startX = 0;
+    let startY = 0;
+    let moved = false;
+
+    // 별표/버튼은 터치가 카드까지 전파되지 않도록 격리
+    cardEl.querySelectorAll('.star-btn, .tts-btn, .card-action-btn').forEach(btn => {
+        btn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+        btn.addEventListener('touchend', e => e.stopPropagation(), { passive: true });
+    });
+
+    cardEl.addEventListener('touchstart', (e) => {
+        // 버튼 자식 요소에서 시작된 터치는 무시
+        if (e.target.closest('.star-btn') || e.target.closest('.tts-btn') || e.target.closest('.card-action-btn')) {
+            return;
+        }
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        moved = false;
+        cardEl.style.transition = 'none';
+    }, { passive: true });
+
+    cardEl.addEventListener('touchmove', (e) => {
+        if (e.target.closest('.star-btn') || e.target.closest('.tts-btn') || e.target.closest('.card-action-btn')) {
+            return;
+        }
+        const dx = e.touches[0].clientX - startX;
+        const dy = e.touches[0].clientY - startY;
+
+        // 가로 이동이 세로 이동보다 클 때만 스와이프로 처리 (세로 스크롤과 구분)
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+            moved = true;
+            const rotation = dx * 0.05;
+            cardEl.style.transform = `translateX(${dx}px) rotate(${rotation}deg)`;
+
+            if (dx > SWIPE_THRESHOLD / 2) {
+                cardEl.classList.add('swiping-right');
+                cardEl.classList.remove('swiping-left');
+            } else if (dx < -SWIPE_THRESHOLD / 2) {
+                cardEl.classList.add('swiping-left');
+                cardEl.classList.remove('swiping-right');
+            } else {
+                cardEl.classList.remove('swiping-right', 'swiping-left');
+            }
+        }
+    }, { passive: true });
+
+    cardEl.addEventListener('touchend', (e) => {
+        if (e.target.closest('.star-btn') || e.target.closest('.tts-btn') || e.target.closest('.card-action-btn')) {
+            return;
+        }
+
+        cardEl.style.transition = 'transform 0.3s ease';
+        cardEl.classList.remove('swiping-right', 'swiping-left');
+        const dx = (e.changedTouches[0].clientX) - startX;
+
+        if (!moved) {
+            // 이동이 거의 없으면 탭으로 간주 → 카드 뒤집기
+            cardEl.style.transform = '';
+            if (flipFunction) flipFunction();
+        } else if (dx > SWIPE_THRESHOLD) {
+            // 오른쪽 스와이프 → 알아요
+            cardEl.style.transform = `translateX(${window.innerWidth}px) rotate(20deg)`;
+            setTimeout(() => { cardEl.style.transform = ''; markFunction(true); }, 300);
+        } else if (dx < -SWIPE_THRESHOLD) {
+            // 왼쪽 스와이프 → 모르겠어요
+            cardEl.style.transform = `translateX(-${window.innerWidth}px) rotate(-20deg)`;
+            setTimeout(() => { cardEl.style.transform = ''; markFunction(false); }, 300);
+        } else {
+            // 기준 미달 → 원위치
+            cardEl.style.transform = 'translateX(0) rotate(0)';
+            setTimeout(() => { cardEl.style.transform = ''; }, 300);
+        }
+    });
+}
+
+function showLearnComplete() {
+    document.getElementById('learn-card-view').style.display = 'none';
+    document.getElementById('learn-complete').style.display = '';
+    document.getElementById('learn-progress-bar').style.width = '100%';
+
+    document.getElementById('complete-known').textContent = learnKnown;
+    document.getElementById('complete-unknown').textContent = learnUnknown;
+}
+
+// ---- Review Screen ----
+function initReview() {
+    reviewCards = getReviewCards();
+    reviewIndex = 0;
+    reviewCorrect = 0;
+    reviewWrong = 0;
+    isReviewFlipped = false;
+
+    document.getElementById('review-complete').style.display = 'none';
+
+    if (reviewCards.length === 0) {
+        document.getElementById('review-empty').style.display = '';
+        document.getElementById('review-card-view').style.display = 'none';
+    } else {
+        document.getElementById('review-empty').style.display = 'none';
+        document.getElementById('review-card-view').style.display = '';
+        document.getElementById('review-total').textContent = reviewCards.length;
+        showReviewCard();
+        recordStudyToday();
+    }
+}
+
+function showReviewCard() {
+    if (reviewIndex >= reviewCards.length) {
+        showReviewComplete();
+        return;
+    }
+
+    const card = reviewCards[reviewIndex];
+    const prog = getProgress(card.id);
+    isReviewFlipped = false;
+
+    document.getElementById('review-card-front').style.display = '';
+    document.getElementById('review-card-back').style.display = 'none';
+    document.getElementById('review-card-number').textContent = `#${card.id}`;
+    document.getElementById('review-card-korean').textContent = card.ko;
+    document.getElementById('review-card-number-back').textContent = `#${card.id}`;
+    document.getElementById('review-card-english').textContent = card.en;
+    document.getElementById('review-card-korean-back').textContent = card.ko;
+
+    document.getElementById('review-current').textContent = reviewIndex + 1;
+    document.getElementById('review-box-badge').textContent = `Box ${prog.box}`;
+    document.getElementById('review-remaining').textContent = `남은 문장: ${reviewCards.length - reviewIndex}`;
+
+    const progress = (reviewIndex / reviewCards.length) * 100;
+    document.getElementById('review-progress-bar').style.width = progress + '%';
+
+    // 별표 상태 업데이트
+    updateStarUI(card.id);
+}
+
+function flipReviewCard() {
+    if (clickBlockedBySwipe) return; // 스와이프 도중 또는 직후에는 뒤집기(클릭) 이벤트 차단
+    isReviewFlipped = !isReviewFlipped;
+    document.getElementById('review-card-front').style.display = isReviewFlipped ? 'none' : '';
+    document.getElementById('review-card-back').style.display = isReviewFlipped ? '' : 'none';
+
+    if (isReviewFlipped) {
+        speak(reviewCards[reviewIndex].id, reviewCards[reviewIndex].en);
+    }
+}
+
+function markReviewCard(correct) {
+    const card = reviewCards[reviewIndex];
+    const prog = getProgress(card.id);
+
+    if (correct) {
+        reviewCorrect++;
+        setProgress(card.id, prog.box, true);
+    } else {
+        reviewWrong++;
+        setProgress(card.id, prog.box, false);
+    }
+
+    reviewIndex++;
+    showReviewCard();
+}
+
+function showReviewComplete() {
+    document.getElementById('review-card-view').style.display = 'none';
+    document.getElementById('review-complete').style.display = '';
+    document.getElementById('review-progress-bar').style.width = '100%';
+
+    document.getElementById('review-correct').textContent = reviewCorrect;
+    document.getElementById('review-wrong').textContent = reviewWrong;
+}
+
+// ---- Test Screen ----
+function renderTestDayChips() {
+    const days = getUniqueDays();
+    const container = document.getElementById('test-day-chips');
+    // Keep the "전체" chip, add day chips
+    days.forEach(day => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.textContent = `Day ${day}`;
+        btn.onclick = () => toggleTestDay(day, btn);
+        container.appendChild(btn);
+    });
+}
+
+function toggleTestDay(day, el) {
+    if (day === 0) {
+        testDays = [0];
+        document.querySelectorAll('#test-day-chips .chip').forEach(c => c.classList.remove('chip-active'));
+        el.classList.add('chip-active');
+    } else {
+        testDays = testDays.filter(d => d !== 0);
+
+        if (testDays.includes(day)) {
+            testDays = testDays.filter(d => d !== day);
+            el.classList.remove('chip-active');
+        } else {
+            testDays.push(day);
+            el.classList.add('chip-active');
+        }
+
+        // Remove 'all' active
+        document.querySelector('#test-day-chips .chip:first-child').classList.remove('chip-active');
+
+        if (testDays.length === 0) {
+            testDays = [0];
+            document.querySelector('#test-day-chips .chip:first-child').classList.add('chip-active');
+        }
+    }
+}
+
+function selectTestType(type, el) {
+    testType = type;
+    document.querySelectorAll('.test-type-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function setTestCount(count, el) {
+    testCount = count;
+    document.querySelectorAll('.test-count-btns .chip').forEach(c => c.classList.remove('chip-active'));
+    el.classList.add('chip-active');
+}
+
+function startTest() {
+    // Get sentences by selected days
+    let pool = [];
+    if (testDays.includes(0)) {
+        pool = [...SENTENCES];
+    } else {
+        testDays.forEach(d => {
+            pool.push(...getSentencesByDay(d));
+        });
+    }
+
+    if (pool.length < 4) {
+        alert('선택한 범위에 문장이 너무 적습니다.');
+        return;
+    }
+
+    // Shuffle and pick
+    pool = pool.sort(() => Math.random() - 0.5);
+    const count = Math.min(testCount, pool.length);
+
+    testQuestions = [];
+    for (let i = 0; i < count; i++) {
+        const sentence = pool[i];
+        const question = generateQuestion(sentence, pool, testType);
+        testQuestions.push(question);
+    }
+
+    testIndex = 0;
+    testScore = 0;
+    testWrongList = [];
+
+    document.getElementById('test-setup').style.display = 'none';
+    document.getElementById('test-in-progress').style.display = '';
+    document.getElementById('test-results').style.display = 'none';
+    document.getElementById('test-total').textContent = count;
+
+    showTestQuestion();
+    recordStudyToday();
+}
+
+function generateQuestion(sentence, pool, type) {
+    if (type === 'listening') {
+        // Pick 3 wrong Korean answers
+        const wrongs = pool.filter(s => s.id !== sentence.id)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+            .map(s => s.ko);
+        const options = [...wrongs, sentence.ko].sort(() => Math.random() - 0.5);
+        return { sentence, type: 'listening', options, answer: sentence.ko };
+    } else if (type === 'translate') {
+        // Pick 3 wrong English answers
+        const wrongs = pool.filter(s => s.id !== sentence.id)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 3)
+            .map(s => s.en);
+        const options = [...wrongs, sentence.en].sort(() => Math.random() - 0.5);
+        return { sentence, type: 'translate', options, answer: sentence.en };
+    } else {
+        // Fill in the blank
+        const words = sentence.en.split(' ').filter(w => w.length > 3);
+        if (words.length === 0) {
+            // Fallback: use translate type
+            const wrongs = pool.filter(s => s.id !== sentence.id)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 3)
+                .map(s => s.en);
+            const options = [...wrongs, sentence.en].sort(() => Math.random() - 0.5);
+            return { sentence, type: 'translate', options, answer: sentence.en };
+        }
+        const blankWord = words[Math.floor(Math.random() * words.length)];
+        // Clean the word (remove punctuation for answer)
+        const cleanWord = blankWord.replace(/[.,!?;:'"]/g, '');
+        const blankSentence = sentence.en.replace(blankWord, '_____');
+        return { sentence, type: 'fill', blankSentence, answer: cleanWord };
+    }
+}
+
+function showTestQuestion() {
+    if (testIndex >= testQuestions.length) {
+        showTestResults();
+        return;
+    }
+
+    const q = testQuestions[testIndex];
+    document.getElementById('test-current').textContent = testIndex + 1;
+
+    const progress = (testIndex / testQuestions.length) * 100;
+    document.getElementById('test-progress-bar').style.width = progress + '%';
+
+    // Hide all quiz types
+    document.getElementById('quiz-listening').style.display = 'none';
+    document.getElementById('quiz-translate').style.display = 'none';
+    document.getElementById('quiz-fill').style.display = 'none';
+
+    if (q.type === 'listening') {
+        document.getElementById('quiz-listening').style.display = '';
+        speak(q.sentence.en);
+
+        const optionsDiv = document.getElementById('quiz-listening-options');
+        optionsDiv.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-option';
+            btn.textContent = opt;
+            btn.onclick = () => handleQuizAnswer(btn, opt, q.answer, optionsDiv);
+            optionsDiv.appendChild(btn);
+        });
+    } else if (q.type === 'translate') {
+        document.getElementById('quiz-translate').style.display = '';
+        document.getElementById('quiz-korean-sentence').textContent = q.sentence.ko;
+
+        const optionsDiv = document.getElementById('quiz-translate-options');
+        optionsDiv.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-option';
+            btn.textContent = opt;
+            btn.onclick = () => handleQuizAnswer(btn, opt, q.answer, optionsDiv);
+            optionsDiv.appendChild(btn);
+        });
+    } else if (q.type === 'fill') {
+        document.getElementById('quiz-fill').style.display = '';
+        document.getElementById('quiz-fill-sentence').textContent = q.blankSentence;
+        document.getElementById('quiz-fill-hint').textContent = q.sentence.ko;
+        document.getElementById('quiz-fill-input').value = '';
+        document.getElementById('fill-feedback').style.display = 'none';
+        document.getElementById('quiz-fill-input').focus();
+    }
+}
+
+function handleQuizAnswer(btn, selected, answer, container) {
+    const buttons = container.querySelectorAll('.quiz-option');
+    buttons.forEach(b => {
+        b.disabled = true;
+        if (b.textContent === answer) {
+            b.classList.add('correct');
+        }
+    });
+
+    const isCorrect = selected === answer;
+    if (!isCorrect) {
+        btn.classList.add('wrong');
+        testWrongList.push(testQuestions[testIndex].sentence);
+    } else {
+        testScore++;
+    }
+
+    // Update spaced rep
+    const sid = testQuestions[testIndex].sentence.id;
+    const prog = getProgress(sid);
+    if (prog.box > 0) {
+        setProgress(sid, prog.box, isCorrect);
+    }
+
+    // Auto advance after delay
+    setTimeout(() => {
+        testIndex++;
+        showTestQuestion();
+    }, isCorrect ? 600 : 1500);
+}
+
+function submitFillAnswer() {
+    const q = testQuestions[testIndex];
+    const input = document.getElementById('quiz-fill-input').value.trim();
+    const feedback = document.getElementById('fill-feedback');
+
+    if (!input) return;
+
+    const isCorrect = input.toLowerCase() === q.answer.toLowerCase();
+
+    feedback.style.display = '';
+    feedback.className = 'fill-feedback ' + (isCorrect ? 'correct' : 'wrong');
+
+    if (isCorrect) {
+        testScore++;
+        feedback.textContent = '✅ 정답!';
+    } else {
+        testWrongList.push(q.sentence);
+        feedback.innerHTML = `❌ 오답! 정답: <strong>${q.answer}</strong><br>${q.sentence.en}`;
+    }
+
+    // Update spaced rep
+    const prog = getProgress(q.sentence.id);
+    if (prog.box > 0) {
+        setProgress(q.sentence.id, prog.box, isCorrect);
+    }
+
+    setTimeout(() => {
+        testIndex++;
+        showTestQuestion();
+    }, isCorrect ? 800 : 2000);
+}
+
+// Enter key for fill-in-the-blank
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('quiz-fill').style.display !== 'none') {
+        submitFillAnswer();
+    }
+});
+
+function showTestResults() {
+    document.getElementById('test-in-progress').style.display = 'none';
+    document.getElementById('test-results').style.display = '';
+    document.getElementById('test-progress-bar').style.width = '100%';
+
+    const total = testQuestions.length;
+    const percent = Math.round((testScore / total) * 100);
+
+    document.getElementById('test-score').textContent = testScore;
+    document.getElementById('test-score-total').textContent = total;
+    document.getElementById('test-score-percent').textContent = percent + '%';
+
+    // Icon based on score
+    if (percent >= 90) {
+        document.getElementById('test-result-icon').textContent = '🏆';
+        document.getElementById('test-result-title').textContent = '완벽해요!';
+    } else if (percent >= 70) {
+        document.getElementById('test-result-icon').textContent = '👏';
+        document.getElementById('test-result-title').textContent = '잘했어요!';
+    } else if (percent >= 50) {
+        document.getElementById('test-result-icon').textContent = '💪';
+        document.getElementById('test-result-title').textContent = '조금만 더!';
+    } else {
+        document.getElementById('test-result-icon').textContent = '📚';
+        document.getElementById('test-result-title').textContent = '복습이 필요해요';
+    }
+
+    // Wrong list
+    const wrongItems = document.getElementById('test-wrong-items');
+    wrongItems.innerHTML = '';
+    if (testWrongList.length === 0) {
+        document.getElementById('test-wrong-list').style.display = 'none';
+    } else {
+        document.getElementById('test-wrong-list').style.display = '';
+        testWrongList.forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'wrong-item';
+            div.innerHTML = `
+        <div class="wrong-en">${s.en}</div>
+        <div class="wrong-ko">${s.ko}</div>
+      `;
+            div.onclick = () => speak(s.id, s.en);
+            div.style.cursor = 'pointer';
+            wrongItems.appendChild(div);
+        });
+    }
+}
+
+function exitTest() {
+    document.getElementById('test-setup').style.display = '';
+    document.getElementById('test-in-progress').style.display = 'none';
+    document.getElementById('test-results').style.display = 'none';
+    showScreen('home');
+}
+
+// ---- Starred Sentences (즐겨찾기 보관함) ----
+function toggleStar(sentenceId, event) {
+    if (event) event.stopPropagation();
+
+    const idx = appState.starredSentences.indexOf(sentenceId);
+    if (idx === -1) {
+        appState.starredSentences.push(sentenceId);
+    } else {
+        appState.starredSentences.splice(idx, 1);
+    }
+    saveState();
+
+    // UI 업데이트 (현재 떠있는 카드별 ID 비교)
+    updateStarUI(sentenceId);
+}
+
+function updateStarUI(sentenceId) {
+    const isStarred = appState.starredSentences.includes(sentenceId);
+    const starEls = document.querySelectorAll(`.star-btn[data-id="${sentenceId}"]`);
+
+    starEls.forEach(el => {
+        if (isStarred) {
+            el.classList.add('active');
+            el.innerHTML = '⭐';
+        } else {
+            el.classList.remove('active');
+            el.innerHTML = '☆';
+        }
+    });
+
+    // 만약 보관함 화면에 있다면 리스트 갱신
+    if (currentScreen === 'starred') {
+        renderStarredList();
+    }
+}
+
+function renderStarredList() {
+    const list = document.getElementById('starred-list');
+    if (!list) return;
+
+    list.innerHTML = '';
+    const starredIds = appState.starredSentences || [];
+
+    document.getElementById('starred-count').textContent = starredIds.length;
+
+    if (starredIds.length === 0) {
+        list.innerHTML = '<div class="empty-state-small">즐겨찾기한 문장이 없습니다.</div>';
+        return;
+    }
+
+    // ID 리스트를 기반으로 실제 데이터 매핑
+    const starredSentences = starredIds.map(id => SENTENCES.find(s => s.id === id)).filter(Boolean);
+
+    starredSentences.forEach((card, idx) => {
+        const item = document.createElement('div');
+        item.className = 'preview-item'; // 재사용 가능한 디자인 패턴 활용
+        item.innerHTML = `
+            <div class="preview-num" style="background: rgba(255,171,64,0.1); color: var(--accent-orange);">${idx + 1}</div>
+            <div class="preview-text">
+                <div class="preview-en">${card.en}</div>
+                <div class="preview-ko">${card.ko}</div>
+            </div>
+            <button class="tts-btn" onclick="speak('${card.en.replace(/'/g, "\\'")}')">
+                🔊
+            </button>
+            <button class="icon-btn star-btn active" data-id="${card.id}" onclick="toggleStar(${card.id}, event)" style="margin-left: 8px; font-size: 20px;">
+                ⭐
+            </button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// ---- Stats Screen ----
+function renderStats() {
+    const total = SENTENCES.length;
+    const boxCounts = [0, 0, 0, 0, 0, 0]; // box 0-5
+
+    for (const id in appState.progress) {
+        const box = appState.progress[id].box;
+        if (box >= 0 && box <= 5) {
+            boxCounts[box]++;
+        }
+    }
+
+    const mastered = boxCounts[5];
+    const percent = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+    document.getElementById('stats-percent').textContent = percent + '%';
+
+    // Circle
+    const circumference = 2 * Math.PI * 52;
+    const offset = circumference - (percent / 100) * circumference;
+    document.getElementById('stats-circle-fill').style.strokeDashoffset = offset;
+
+    // Box bars
+    for (let i = 1; i <= 5; i++) {
+        const barPercent = total > 0 ? (boxCounts[i] / total * 100) : 0;
+        document.getElementById(`stats-box${i}`).textContent = boxCounts[i];
+        document.getElementById(`stats-box${i}-bar`).style.width = barPercent + '%';
+    }
+
+    // Hard sentences (most wrong count)
+    const hardList = document.getElementById('stats-hard-list');
+    const allProgress = Object.entries(appState.progress)
+        .filter(([id, p]) => p.wrongCount > 0)
+        .sort((a, b) => b[1].wrongCount - a[1].wrongCount)
+        .slice(0, 10);
+
+    if (allProgress.length === 0) {
+        hardList.innerHTML = '<div class="empty-state-small">아직 데이터가 없습니다</div>';
+    } else {
+        hardList.innerHTML = '';
+        allProgress.forEach(([id, prog], idx) => {
+            const sentence = SENTENCES.find(s => s.id === parseInt(id));
+            if (!sentence) return;
+
+            const div = document.createElement('div');
+            div.className = 'hard-item';
+            div.innerHTML = `
+        <div class="hard-rank">${idx + 1}</div>
+        <div class="hard-text">
+          <div class="hard-en">${sentence.en}</div>
+          <div>${sentence.ko}</div>
+        </div>
+        <div class="hard-count">${prog.wrongCount}회</div>
+      `;
+            div.style.cursor = 'pointer';
+            div.onclick = () => speak(sentence.id, sentence.en);
+            hardList.appendChild(div);
+        });
+    }
+}
+
+function addSVGGradient() {
+    // Add SVG gradient definition for the stats circle
+    const svg = document.querySelector('.stats-circle');
+    if (!svg) return;
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    grad.setAttribute('id', 'statsGradient');
+    grad.setAttribute('x1', '0%');
+    grad.setAttribute('y1', '0%');
+    grad.setAttribute('x2', '100%');
+    grad.setAttribute('y2', '0%');
+
+    const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop1.setAttribute('offset', '0%');
+    stop1.setAttribute('stop-color', '#667eea');
+
+    const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop2.setAttribute('offset', '100%');
+    stop2.setAttribute('stop-color', '#764ba2');
+
+    grad.appendChild(stop1);
+    grad.appendChild(stop2);
+    defs.appendChild(grad);
+    svg.insertBefore(defs, svg.firstChild);
+}
+
+function confirmReset() {
+    if (confirm('정말 모든 학습 데이터를 초기화하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+        appState = { progress: {}, streak: 0, lastStudyDate: null, testHistory: [], starredSentences: [] };
+        saveState();
+        renderHome();
+        renderStats();
+        alert('학습 데이터가 초기화되었습니다.');
+    }
+}
+
+// ---- ⭐ 즐겨찾기 (내 단어장) ----
+function toggleStar(id, event) {
+    if (event) event.stopPropagation();
+    if (!appState.starredSentences) appState.starredSentences = [];
+    const idx = appState.starredSentences.indexOf(id);
+    if (idx === -1) {
+        appState.starredSentences.push(id);
+    } else {
+        appState.starredSentences.splice(idx, 1);
+    }
+    saveState();
+    updateStarUI(id);
+}
+
+function updateStarUI(id) {
+    if (!appState.starredSentences) appState.starredSentences = [];
+    const isStarred = appState.starredSentences.includes(id);
+    // 학습 카드 별표 버튼
+    const learnStar = document.querySelector('#learn-card .star-btn');
+    if (learnStar) {
+        learnStar.textContent = isStarred ? '⭐' : '☆';
+        learnStar.setAttribute('data-id', id);
+        learnStar.classList.toggle('active', isStarred);
+    }
+    // 복습 카드 별표 버튼
+    const reviewStar = document.querySelector('#review-card .star-btn');
+    if (reviewStar) {
+        reviewStar.textContent = isStarred ? '⭐' : '☆';
+        reviewStar.setAttribute('data-id', id);
+        reviewStar.classList.toggle('active', isStarred);
+    }
+}
+
+function renderStarredList() {
+    if (!appState.starredSentences) appState.starredSentences = [];
+    const list = document.getElementById('starred-list');
+    const countEl = document.getElementById('starred-count');
+    if (!list) return;
+
+    const starred = appState.starredSentences
+        .map(id => SENTENCES.find(s => s.id === id))
+        .filter(Boolean);
+
+    if (countEl) countEl.textContent = starred.length;
+
+    if (starred.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state" style="padding: 40px 20px; text-align:center;">
+                <div class="empty-icon">⭐</div>
+                <h3>아직 저장된 문장이 없어요</h3>
+                <p>플래시카드에서 별표 버튼을 눌러<br>중요한 문장을 추가해보세요!</p>
+            </div>`;
+        return;
+    }
+
+    list.innerHTML = '';
+    starred.forEach((card, idx) => {
+        const item = document.createElement('div');
+        item.className = 'preview-item';
+        item.innerHTML = `
+            <div class="preview-num">${idx + 1}</div>
+            <div class="preview-text">
+                <div class="preview-en">${card.en}</div>
+                <div class="preview-ko">${card.ko}</div>
+            </div>
+            <button class="tts-btn" onclick="speak(${card.id}, '${card.en.replace(/'/g, "\\'")}')">🔊</button>
+            <button class="tts-btn" style="margin-left:4px; color: var(--accent-orange, #ffab40);" onclick="toggleStar(${card.id}, event); renderStarredList();">☆ 삭제</button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// ---- 🏆 마스터 문장 목록 ----
+function showMasteredList() {
+    const mastered = Object.entries(appState.progress)
+        .filter(([id, p]) => p.box >= 5)
+        .map(([id]) => SENTENCES.find(s => s.id === parseInt(id)))
+        .filter(Boolean);
+
+    const existing = document.getElementById('screen-mastered');
+    if (existing) existing.remove();
+
+    const screen = document.createElement('div');
+    screen.id = 'screen-mastered';
+    screen.className = 'screen active';
+    screen.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:var(--bg-primary);overflow-y:auto;padding-bottom:80px;';
+
+    let html = `
+        <div class="learn-header" style="position:sticky;top:0;z-index:10;background:var(--bg-primary);">
+            <button class="back-btn" onclick="document.getElementById('screen-mastered').remove()">← 닫기</button>
+            <h2>🏆 마스터 문장</h2>
+            <div class="learn-progress">${mastered.length}문장</div>
+        </div>
+        <div class="preview-list" style="padding:12px 16px;">
+    `;
+
+    mastered.forEach((card, idx) => {
+        html += `
+            <div class="preview-item">
+                <div class="preview-num">${idx + 1}</div>
+                <div class="preview-text">
+                    <div class="preview-en">${card.en}</div>
+                    <div class="preview-ko">${card.ko}</div>
+                </div>
+                <button class="tts-btn" onclick="speak(${card.id}, '${card.en.replace(/'/g, "\\'")}')">🔊</button>
+            </div>`;
+    });
+
+    html += '</div>';
+    screen.innerHTML = html;
+    document.getElementById('app').appendChild(screen);
+}
+
+// ---- Initialization ----
+document.addEventListener('DOMContentLoaded', () => {
+    loadState();
+    if (!appState.progress) appState.progress = {};
+    if (!appState.testHistory) appState.testHistory = [];
+    if (!appState.starredSentences) appState.starredSentences = []; // 즐겨찾기 보장
+
+    renderHome();
+    addSVGGradient();
+
+    // Swipe Listeners Initialization (탭=플립, 스와이프=넘기기 단일 핸들러)
+    initSwipeListeners('learn-card', markCard, flipCard);
+    initSwipeListeners('review-card', markReviewCard, flipReviewCard);
+});

@@ -1,0 +1,22 @@
+{
+  "name": "EPS 컨퍼런스콜 영어 마스터",
+  "short_name": "EPS영어",
+  "description": "EPS 제어기 엔지니어를 위한 컨퍼런스콜 영어 학습 앱",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f23",
+  "theme_color": "#0f0f23",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
