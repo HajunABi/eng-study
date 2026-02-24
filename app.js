@@ -263,26 +263,30 @@ function showScreen(name, updateHistory = true) {
 }
 
 // 스마트폰 기기 "물리 뒤로가기 버튼" 및 브라우저 뒤로가기 감지 (PWA 핵심)
+// *** 히스토리 가드(guard) 패턴: 홈에서 뒤로가기 누르면 앱이 종료되지 않게 방어 ***
 window.addEventListener('popstate', (e) => {
     // 모달(가이드 등)이 켜져있을 때 뒤로가기를 누르면 모달만 닫기
     if (document.getElementById('guide-overlay').style.display === 'flex') {
         closeGuide(false);
-        return; // 앱 바깥으로 나가지 않음
+        // 가드 재삽입
+        history.pushState({ screen: 'home' }, 'home', '#home');
+        return;
     }
 
     // 마스터 뷰 열려있으면 닫기
     const masterView = document.getElementById('screen-mastered');
     if (masterView) {
         masterView.remove();
+        history.pushState({ screen: 'home' }, 'home', '#home');
         return;
     }
 
     if (e.state && e.state.screen) {
-        // 기존 히스토리에 있는 화면으로 전환 (History 강제 중복 삽입 방지)
         showScreen(e.state.screen, false);
     } else {
-        // 최초 화면이거나 상태가 없는 경우 홈으로 돌림
+        // 홈 화면에서 뒤로가기 누르면 앱 종료 방지: 가드 재삽입
         showScreen('home', false);
+        history.pushState({ screen: 'home' }, 'home', '#home');
     }
 });
 
@@ -316,7 +320,16 @@ function renderHome() {
     document.getElementById('home-master-bar').style.width =
         (totalSentences > 0 ? (mastered / totalSentences * 100) : 0) + '%';
     document.getElementById('home-review-count').textContent = reviewCount;
-    document.getElementById('home-streak').innerHTML = appState.streak + '<span class="stat-unit">일</span>';
+    document.getElementById('home-streak').innerHTML = appState.streak + '<span class="dash-unit">일</span>';
+
+    // 시간대별 인사말
+    const greetEl = document.getElementById('hero-greeting');
+    if (greetEl) {
+        const hour = new Date().getHours();
+        if (hour < 12) greetEl.textContent = 'Good morning ☀️';
+        else if (hour < 18) greetEl.textContent = 'Good afternoon 🌤️';
+        else greetEl.textContent = 'Good evening 🌙';
+    }
 
     // 마스터 문장 카드 클릭 → 마스터 문장 목록 화면으로
     const masterCard = document.querySelector('.stat-total');
