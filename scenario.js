@@ -1,27 +1,50 @@
 // scenario.js — 시나리오 대화 모드
-// Day의 처음 10문장을 교대로 대화 형식 시뮬레이션
+// Day 선택 UI → 처음 10문장을 교대 대화 시뮬레이션
 
 let scenarioSentences = [];
 let scenarioIndex = 0;
 let scenarioDay = 1;
 let scenarioRevealed = false;
 
+// 홈 → 시나리오 화면 진입
 function startScenarioMode() {
-    const dayStr = prompt("몇 Day 시나리오를 시작할까요? (예: 1)", "1");
-    if (!dayStr) return;
-    const day = parseInt(dayStr);
-    if (isNaN(day) || day < 1) { alert("올바른 Day를 입력해주세요."); return; }
+    showScreen('scenario');
+    renderScenarioDaySelect();
+    document.getElementById('scenario-day-select').style.display = '';
+    document.getElementById('scenario-play').style.display = 'none';
+    document.getElementById('scenario-title').textContent = '🎭 시나리오';
+    document.getElementById('scenario-current').textContent = '0';
+    document.getElementById('scenario-total').textContent = '10';
+}
 
+// Day 선택 그리드 렌더링 (기존 learn screen의 day-select-grid와 동일 스타일 재사용)
+function renderScenarioDaySelect() {
+    const grid = document.getElementById('scenario-day-grid');
+    grid.innerHTML = '';
+    const days = getUniqueDays().sort((a, b) => a - b);
+    days.forEach(day => {
+        const sents = getSentencesByDay(day);
+        const btn = document.createElement('button');
+        btn.className = 'day-select-btn';
+        btn.innerHTML = `<span class="day-num">Day ${day}</span><span class="day-count">${Math.min(sents.length, 10)}문장</span>`;
+        btn.onclick = () => startScenarioDay(day);
+        grid.appendChild(btn);
+    });
+}
+
+// Day 선택 → 대화 시작
+function startScenarioDay(day) {
     const sents = getSentencesByDay(day);
-    if (sents.length === 0) { alert(`Day ${day} 데이터가 없습니다.`); return; }
+    if (sents.length === 0) return;
 
     scenarioDay = day;
     scenarioSentences = sents.slice(0, 10);
     scenarioIndex = 0;
     scenarioRevealed = false;
 
-    showScreen('scenario');
-    document.getElementById('scenario-title').textContent = `🎭 Day ${day} 시나리오`;
+    document.getElementById('scenario-day-select').style.display = 'none';
+    document.getElementById('scenario-play').style.display = '';
+    document.getElementById('scenario-title').textContent = `🎭 Day ${day}`;
     document.getElementById('scenario-current').textContent = '0';
     document.getElementById('scenario-total').textContent = scenarioSentences.length;
     document.getElementById('scenario-chat').innerHTML = '';
@@ -36,13 +59,11 @@ function nextScenarioStep() {
     }
 
     const sent = scenarioSentences[scenarioIndex];
-    const isUser = scenarioIndex % 2 === 0; // 짝수=내 차례, 홀수=상대
+    const isUser = scenarioIndex % 2 === 0;
     const chat = document.getElementById('scenario-chat');
-
     const bubble = document.createElement('div');
 
     if (!isUser) {
-        // 상대방 턴 — 즉시 보여주기
         bubble.className = 'scenario-bubble counterparty';
         bubble.innerHTML = `
             <div class="speaker-name">Client / PM</div>
@@ -50,13 +71,11 @@ function nextScenarioStep() {
             <div class="ko-text">${sent.ko}</div>`;
         chat.appendChild(bubble);
         _speakScenario(sent.en);
-
         scenarioIndex++;
         document.getElementById('scenario-current').textContent = scenarioIndex;
         document.getElementById('scenario-actions').innerHTML =
             `<button class="action-btn action-primary" onclick="nextScenarioStep()">다음 대화 ▶</button>`;
     } else {
-        // 내 턴 — placeholder → 탭하면 공개
         scenarioRevealed = false;
         bubble.className = 'scenario-bubble user placeholder';
         bubble.id = `sc-bubble-${scenarioIndex}`;
@@ -66,16 +85,14 @@ function nextScenarioStep() {
             <div class="tap-hint">탭하여 영어 확인</div>`;
         bubble.onclick = () => _revealUser(sent);
         chat.appendChild(bubble);
-        document.getElementById('scenario-actions').innerHTML = ''; // 버튼 숨김
+        document.getElementById('scenario-actions').innerHTML = '';
     }
-
     chat.scrollTop = chat.scrollHeight;
 }
 
 function _revealUser(sent) {
     if (scenarioRevealed) return;
     scenarioRevealed = true;
-
     const bubble = document.getElementById(`sc-bubble-${scenarioIndex}`);
     if (!bubble) return;
     bubble.className = 'scenario-bubble user revealed';
@@ -84,14 +101,11 @@ function _revealUser(sent) {
         <div class="speaker-name">Me</div>
         <div class="en-text">${sent.en}</div>
         <div class="ko-text">${sent.ko}</div>`;
-
     _speakScenario(sent.en);
     scenarioIndex++;
     document.getElementById('scenario-current').textContent = scenarioIndex;
-
     document.getElementById('scenario-chat').scrollTop =
         document.getElementById('scenario-chat').scrollHeight;
-
     document.getElementById('scenario-actions').innerHTML = `
         <button class="card-action-btn btn-dont-know" onclick="nextScenarioStep()" style="flex:1">
             <span>🤔</span> 다시 연습
@@ -108,13 +122,19 @@ function finishScenario() {
     done.innerHTML = `🎉 Day ${scenarioDay} 시나리오 완료!`;
     chat.appendChild(done);
     chat.scrollTop = chat.scrollHeight;
-
     document.getElementById('scenario-actions').innerHTML = `
-        <button class="action-btn action-secondary" onclick="showScreen('home')">종료</button>
-        <button class="action-btn action-primary" onclick="startScenarioMode()">다른 Day</button>`;
+        <button class="action-btn action-secondary" onclick="startScenarioMode()">Day 선택</button>
+        <button class="action-btn action-primary" onclick="showScreen('home')">홈으로</button>`;
 }
 
-function exitScenario() { showScreen('home'); }
+function exitScenario() {
+    // 대화 중이면 Day 선택으로, Day 선택에서면 홈으로
+    if (document.getElementById('scenario-play').style.display !== 'none') {
+        startScenarioMode();
+    } else {
+        showScreen('home');
+    }
+}
 
 function _speakScenario(text) {
     if (!('speechSynthesis' in window)) return;

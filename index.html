@@ -195,7 +195,7 @@
         <div id="preview-list" class="preview-list">
           <!-- JS로 채워짐 -->
         </div>
-        <div class="home-actions" style="margin-top: 16px;">
+        <div class="preview-sticky-bar">
           <button class="action-btn action-primary" onclick="startLearnFlashcards()">
             <span class="btn-icon">📝</span>
             플래시카드로 암기 확인
@@ -618,17 +618,29 @@
     <!-- ============ SCENARIO SCREEN ============ -->
     <div id="screen-scenario" class="screen">
       <div class="learn-header">
-        <button class="back-btn" onclick="showScreen('home')">← 나가기</button>
+        <button class="back-btn" onclick="exitScenario()">← 나가기</button>
         <h2 id="scenario-title">🎭 시나리오</h2>
         <div class="learn-progress">
           <span id="scenario-current">0</span>/<span id="scenario-total">10</span>
         </div>
       </div>
-      <div class="scenario-container" id="scenario-chat"></div>
-      <div class="scenario-actions" id="scenario-actions">
-        <button class="action-btn action-primary" id="scenario-next-btn" onclick="nextScenarioStep()">
-          대화 시작 ▶
-        </button>
+
+      <!-- Day 선택 화면 -->
+      <div id="scenario-day-select">
+        <p class="preview-desc">시나리오를 연습할 Day를 선택하세요.<br>각 Day의 처음 10문장으로 가상 회의 대화를 시뮬레이션합니다.</p>
+        <div class="day-select-grid" id="scenario-day-grid">
+          <!-- JS로 채워짐 -->
+        </div>
+      </div>
+
+      <!-- 대화 영역 (선택 후 표시) -->
+      <div id="scenario-play" style="display:none">
+        <div class="scenario-container" id="scenario-chat"></div>
+        <div class="scenario-actions" id="scenario-actions">
+          <button class="action-btn action-primary" id="scenario-next-btn" onclick="nextScenarioStep()">
+            대화 시작 ▶
+          </button>
+        </div>
       </div>
     </div>
   </div>

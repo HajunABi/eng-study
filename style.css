@@ -1533,6 +1533,19 @@ body {
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* 사전학습 하단 고정 버튼 바 */
+.preview-sticky-bar {
+  position: sticky;
+  bottom: 56px;
+  /* 하단 nav 높이 고려 */
+  background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
+  padding: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
 .scenario-actions {
   position: fixed;
   bottom: 0;
