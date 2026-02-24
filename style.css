@@ -806,10 +806,11 @@ body {
 }
 
 .card-korean {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.5;
   color: var(--text-primary);
+  word-break: keep-all;
 }
 
 .card-hint {
@@ -832,19 +833,57 @@ body {
 }
 
 .card-english {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.4;
   color: var(--accent-blue);
-  margin-bottom: 12px;
-  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+  margin-bottom: 14px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.3px;
 }
 
 .card-korean-small {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 16px;
+  font-weight: 500;
+}
+
+/* ===== ✓/✗ 피드백 오버레이 ===== */
+.card-feedback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  opacity: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: var(--radius-lg);
+}
+
+.card-feedback.show {
+  opacity: 1;
+  animation: feedbackPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes feedbackPop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
 }
 
 .tts-btn {
@@ -1294,6 +1333,190 @@ body {
 }
 
 /* ========== Stats Screen ========== */
+/* 마스터 맵 */
+.master-map-wrap {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.master-map-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.master-map-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.master-map-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.master-map-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.map-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.map-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s;
+}
+
+.map-node.in-progress .map-circle {
+  background: rgba(79, 195, 247, 0.15);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+}
+
+.map-node.mastered .map-circle {
+  background: var(--gradient-green);
+  border-color: transparent;
+  color: #121212;
+  box-shadow: var(--shadow-glow-green);
+}
+
+.map-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ===== 시나리오 모드 UI ===== */
+.scenario-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  padding-bottom: 100px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.scenario-bubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 18px;
+  line-height: 1.5;
+  animation: slideUpFade 0.3s ease-out;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.scenario-bubble.counterparty {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom-left-radius: 4px;
+}
+
+.scenario-bubble .speaker-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.scenario-bubble .en-text {
+  font-size: 16px;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.scenario-bubble .ko-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.scenario-bubble.user {
+  align-self: flex-end;
+  background: var(--gradient-primary);
+  border-bottom-right-radius: 4px;
+}
+
+.scenario-bubble.user .speaker-name {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.scenario-bubble.user.placeholder {
+  background: rgba(79, 195, 247, 0.12);
+  border: 1px dashed var(--accent-blue);
+  cursor: pointer;
+  text-align: center;
+}
+
+.scenario-bubble .tap-hint {
+  font-size: 13px;
+  color: var(--accent-blue);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.scenario-bubble.user.revealed .en-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.scenario-bubble.user.revealed .ko-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.scenario-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: linear-gradient(to top, var(--bg-primary) 70%, transparent);
+  display: flex;
+  gap: 12px;
+  z-index: 100;
+}
+
+.scenario-actions .card-action-btn {
+  flex: 1;
+}
+
 .stats-overview {
   display: flex;
   justify-content: center;

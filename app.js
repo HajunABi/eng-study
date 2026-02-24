@@ -21,6 +21,7 @@ let currentLearnCards = [];
 let currentLearnIndex = 0;
 let learnKnown = 0;
 let learnUnknown = 0;
+let learnUnknownList = []; // 즉시 복기용 틀린 카드 ID
 let isCardFlipped = false;
 let learnHistory = []; // Undo 히스토리 스택: [{id, wasKnown, prevBox, prevWrongCount}]
 
@@ -550,6 +551,7 @@ function markCard(known) {
         setProgress(card.id, getProgress(card.id).box, true);
     } else {
         learnUnknown++;
+        learnUnknownList.push(card.id);
         setProgress(card.id, getProgress(card.id).box, false);
     }
 
@@ -559,12 +561,20 @@ function markCard(known) {
     appState.learnSession[currentLearnDay].push(card.id);
     saveState();
 
-    currentLearnIndex++;
-    showLearnCard();
-
-    // Undo 버튼 표시
-    const undoBtn = document.getElementById('learn-undo-btn');
-    if (undoBtn) undoBtn.style.display = learnHistory.length > 0 ? '' : 'none';
+    // ✓/✗ 피드백 애니메이션
+    const fb = document.getElementById('learn-card-feedback');
+    if (fb) {
+        fb.textContent = known ? '✓' : '✗';
+        fb.style.color = known ? 'var(--accent-green)' : 'var(--accent-red)';
+        fb.classList.add('show');
+    }
+    setTimeout(() => {
+        if (fb) fb.classList.remove('show');
+        currentLearnIndex++;
+        showLearnCard();
+        const undoBtn = document.getElementById('learn-undo-btn');
+        if (undoBtn) undoBtn.style.display = learnHistory.length > 0 ? '' : 'none';
+    }, 350);
 }
 
 // ---- Swipe Gesture Logic ----
@@ -663,6 +673,66 @@ function showLearnComplete() {
         delete appState.learnSession[currentLearnDay];
         saveState();
     }
+
+    // 동적 CTA 영역
+    const ctaWrap = document.getElementById('complete-cta');
+    if (ctaWrap) {
+        ctaWrap.innerHTML = '';
+        // 기본 복습 버튼
+        const reviewBtn = document.createElement('button');
+        reviewBtn.className = 'action-btn action-primary';
+        reviewBtn.textContent = '복습하러 가기';
+        reviewBtn.onclick = () => showScreen('review');
+        ctaWrap.appendChild(reviewBtn);
+
+        // 틀린 문장 복기
+        if (learnUnknown > 0) {
+            const retryBtn = document.createElement('button');
+            retryBtn.className = 'action-btn action-secondary';
+            retryBtn.style.cssText = 'margin-top:10px; background:rgba(255,100,100,0.1); color:#ff6b6b; border:1px solid rgba(255,100,100,0.2);';
+            retryBtn.innerHTML = `❌ 틀린 ${learnUnknown}문장 바로 복기`;
+            retryBtn.onclick = startInstantReview;
+            ctaWrap.appendChild(retryBtn);
+        }
+        // 다음 Day
+        const nextDay = getNextUnlearnedDay(currentLearnDay);
+        if (nextDay) {
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'action-btn action-secondary';
+            nextBtn.style.marginTop = '10px';
+            nextBtn.innerHTML = `⚡ Day ${nextDay} 바로 시작`;
+            nextBtn.onclick = () => startLearnDay(nextDay);
+            ctaWrap.appendChild(nextBtn);
+        }
+    }
+}
+
+function getNextUnlearnedDay(afterDay) {
+    const days = getUniqueDays();
+    for (const day of days) {
+        if (day <= afterDay) continue;
+        const sents = getSentencesByDay(day);
+        const unlearned = sents.filter(s => !appState.progress[s.id] || appState.progress[s.id].box === 0);
+        if (unlearned.length > 0) return day;
+    }
+    return null;
+}
+
+function startInstantReview() {
+    if (learnUnknownList.length === 0) return;
+    const cards = learnUnknownList.map(id => SENTENCES.find(s => s.id === id)).filter(Boolean);
+    currentLearnCards = cards;
+    currentLearnIndex = 0;
+    learnKnown = 0;
+    learnUnknown = 0;
+    learnUnknownList = [];
+    isCardFlipped = false;
+    learnHistory = [];
+    document.getElementById('learn-complete').style.display = 'none';
+    document.getElementById('learn-card-view').style.display = '';
+    document.getElementById('learn-total').textContent = cards.length;
+    document.getElementById('learn-title').textContent = '틀린 문장 복기';
+    showLearnCard();
 }
 
 // ---- Review Screen ----
@@ -749,12 +819,20 @@ function markReviewCard(correct) {
         setProgress(card.id, prog.box, false);
     }
 
-    reviewIndex++;
-    showReviewCard();
-
-    // Undo 버튼 표시
-    const undoBtn = document.getElementById('review-undo-btn');
-    if (undoBtn) undoBtn.style.display = reviewHistory.length > 0 ? '' : 'none';
+    // ✓/✗ 피드백
+    const fb = document.getElementById('review-card-feedback');
+    if (fb) {
+        fb.textContent = correct ? '✓' : '✗';
+        fb.style.color = correct ? 'var(--accent-green)' : 'var(--accent-red)';
+        fb.classList.add('show');
+    }
+    setTimeout(() => {
+        if (fb) fb.classList.remove('show');
+        reviewIndex++;
+        showReviewCard();
+        const undoBtn = document.getElementById('review-undo-btn');
+        if (undoBtn) undoBtn.style.display = reviewHistory.length > 0 ? '' : 'none';
+    }, 350);
 }
 
 function showReviewComplete() {
@@ -1151,6 +1229,30 @@ function renderStats() {
     const total = SENTENCES.length;
     const boxCounts = [0, 0, 0, 0, 0, 0]; // box 0-5
 
+    // 마스터 맵 렌더링
+    const mapScroll = document.getElementById('master-map-scroll');
+    if (mapScroll) {
+        mapScroll.innerHTML = '';
+        const days = getUniqueDays().sort((a, b) => a - b);
+        days.forEach(day => {
+            const daySents = getSentencesByDay(day);
+            let learned = 0, mastered = 0;
+            daySents.forEach(s => {
+                const p = appState.progress[s.id];
+                if (p && p.box > 0) learned++;
+                if (p && p.box === 5) mastered++;
+            });
+            let cls = '';
+            if (mastered === daySents.length && daySents.length > 0) cls = 'mastered';
+            else if (learned > 0) cls = 'in-progress';
+            const node = document.createElement('div');
+            node.className = `map-node ${cls}`;
+            node.innerHTML = `<div class="map-circle">${day}</div><div class="map-label">Day ${day}</div>`;
+            node.onclick = () => { showScreen('learn'); startLearnDay(day); };
+            mapScroll.appendChild(node);
+        });
+    }
+
     for (const id in appState.progress) {
         const box = appState.progress[id].box;
         if (box >= 0 && box <= 5) {
@@ -1406,6 +1508,8 @@ function undoLearnCard() {
         learnKnown--;
     } else {
         learnUnknown--;
+        const ukIdx = learnUnknownList.indexOf(last.id);
+        if (ukIdx !== -1) learnUnknownList.splice(ukIdx, 1);
     }
 
     // 진행률 복원
