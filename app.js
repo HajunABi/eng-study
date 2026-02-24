@@ -230,8 +230,8 @@ function speakTestEnglish() {
     if (testQuestions[testIndex]) speak(testQuestions[testIndex].sentence.id, testQuestions[testIndex].sentence.en);
 }
 
-// ---- Navigation ----
-function showScreen(name) {
+// ---- Navigation with History API ----
+function showScreen(name, updateHistory = true) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-' + name).classList.add('active');
 
@@ -255,7 +255,36 @@ function showScreen(name) {
     if (name === 'test') {
         // Keep test setup if not in progress
     }
+
+    // 뒤로가기 처리를 위한 History 반영
+    if (updateHistory) {
+        history.pushState({ screen: name }, name, `#${name}`);
+    }
 }
+
+// 스마트폰 기기 "물리 뒤로가기 버튼" 및 브라우저 뒤로가기 감지 (PWA 핵심)
+window.addEventListener('popstate', (e) => {
+    // 모달(가이드 등)이 켜져있을 때 뒤로가기를 누르면 모달만 닫기
+    if (document.getElementById('guide-overlay').style.display === 'flex') {
+        closeGuide(false);
+        return; // 앱 바깥으로 나가지 않음
+    }
+
+    // 마스터 뷰 열려있으면 닫기
+    const masterView = document.getElementById('screen-mastered');
+    if (masterView) {
+        masterView.remove();
+        return;
+    }
+
+    if (e.state && e.state.screen) {
+        // 기존 히스토리에 있는 화면으로 전환 (History 강제 중복 삽입 방지)
+        showScreen(e.state.screen, false);
+    } else {
+        // 최초 화면이거나 상태가 없는 경우 홈으로 돌림
+        showScreen('home', false);
+    }
+});
 
 // ---- Unique Days ----
 function getUniqueDays() {
@@ -1276,7 +1305,7 @@ function showMasteredList() {
 
     let html = `
         <div class="learn-header" style="position:sticky;top:0;z-index:10;background:var(--bg-primary);">
-            <button class="back-btn" onclick="document.getElementById('screen-mastered').remove()">← 닫기</button>
+            <button class="back-btn" onclick="history.back()">← 뒤로</button>
             <h2>🏆 마스터 문장</h2>
             <div class="learn-progress">${mastered.length}문장</div>
         </div>
@@ -1298,6 +1327,8 @@ function showMasteredList() {
     html += '</div>';
     screen.innerHTML = html;
     document.getElementById('app').appendChild(screen);
+    // 마스터 목록도 모바일 뒤로가기 대응
+    history.pushState({ modal: 'mastered' }, 'mastered', '#mastered');
 }
 
 // ---- Initialization ----
@@ -1313,16 +1344,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Swipe Listeners Initialization (탭=플립, 스와이프=넘기기 단일 핸들러)
     initSwipeListeners('learn-card', markCard, flipCard);
     initSwipeListeners('review-card', markReviewCard, flipReviewCard);
+
+    // 최초 구동 시 현재 화면(홈) 상태를 히스토리 0번지에 꽂음
+    history.replaceState({ screen: 'home' }, 'home', '#home');
 });
 
 // ---- Guide Modal ----
 function showGuide() {
     document.getElementById('guide-overlay').style.display = 'flex';
+    // 모달을 띄울 때도 가상 히스토리를 꽂아넣어, 뒤로가기 누르면 팝업만 꺼지게 함
+    history.pushState({ modal: 'guide' }, 'guide', '#guide');
 }
 
-function closeGuide() {
+function closeGuide(popHistory = true) {
     document.getElementById('guide-overlay').style.display = 'none';
     localStorage.setItem('eps_guide_seen', 'true');
+    // 사용자가 X버튼으로 닫은 경우에만 히스토리 백 강제 실행 (물리 뒤로가기로 닫힌 경우는 패스)
+    if (popHistory) {
+        if (history.state && history.state.modal === 'guide') {
+            history.back();
+        }
+    }
 }
 
 // ---- Undo (Learn) ----

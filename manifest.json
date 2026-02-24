@@ -1,22 +1,23 @@
 {
-  "name": "EPS 컨퍼런스콜 영어 마스터",
-  "short_name": "EPS영어",
-  "description": "EPS 제어기 엔지니어를 위한 컨퍼런스콜 영어 학습 앱",
+  "name": "EPS 영어 마스터",
+  "short_name": "EPS 영어",
+  "description": "실전 회의 영어 앱, 매일 조금씩 완벽하게",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f0f23",
   "theme_color": "#0f0f23",
-  "orientation": "portrait",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGZjM2Y3IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiI+PHBhdGggZD0iTTEyIDJ2MjBNMTcgNUg5LjVhMy.1IDMuNSAwIDAgMCAwIDdoNWEzLjUgMy41IDAgMCAxIDAgN0g2Ij48L3BhdGg+PC9zdmc+",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGZjM2Y3IiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+PHBhdGggZD0iTTEyIDJ2MjBNMTcgNUg5LjVhMy.1IDMuNSAwIDAgMCAwIDdoNWEzLjUgMy41IDAgMCAxIDAgN0g2Ij48L3BhdGg+PC9zdmc+",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
