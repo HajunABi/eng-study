@@ -703,18 +703,18 @@ body {
 .sentence-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
-  padding: 32px 24px;
+  /* 3D 회전을 위해 내부 여백 제거, card-face로 위임 */
+  padding: 0;
   min-height: 240px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; 삭제 (3D 회전 잘림 방지) */
   touch-action: none;
-  /* 스와이프 시 스크롤 방지 */
   user-select: none;
 }
 
@@ -790,10 +790,81 @@ body {
   background: linear-gradient(135deg, #ff5252, #f44336);
 }
 
-.card-front,
-.card-back {
-  text-align: center;
+/* === 3D 카드 뒤집기 구조 === */
+.card-inner {
+  position: relative;
   width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+}
+
+.card-front {
+  z-index: 2;
+  transform: rotateY(0deg);
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+/* === 중앙 피드백 애니메이션 (O/X) === */
+.card-feedback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  opacity: 0;
+  z-index: 20;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  border-radius: var(--radius-lg);
+}
+
+.card-feedback.show {
+  opacity: 0.9;
+  animation: feedbackPop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes feedbackPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
 }
 
 .card-number {
@@ -806,15 +877,19 @@ body {
 }
 
 .card-korean {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: 24px;
+  /* 크기 확대 */
+  font-weight: 700;
+  /* 굵기 강화 */
+  line-height: 1.5;
   color: var(--text-primary);
+  word-break: keep-all;
 }
 
 .card-hint {
-  margin-top: 20px;
-  font-size: 12px;
+  margin-top: 24px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
   animation: pulse 2s infinite;
 }
@@ -823,28 +898,35 @@ body {
 
   0%,
   100% {
-    opacity: 0.5;
+    opacity: 0.4;
+    transform: scale(0.98);
   }
 
   50% {
     opacity: 1;
+    transform: scale(1.02);
   }
 }
 
 .card-english {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: 28px;
+  /* 주인공 텍스트 강조 */
+  font-weight: 800;
+  /* 주인공 텍스트 강조 */
+  line-height: 1.4;
   color: var(--accent-blue);
-  margin-bottom: 12px;
-  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+  margin-bottom: 16px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.3px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .card-korean-small {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  font-weight: 500;
 }
 
 .tts-btn {
@@ -1294,6 +1376,83 @@ body {
 }
 
 /* ========== Stats Screen ========== */
+/* 마스터 맵 스타일 */
+.master-map-wrap {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.master-map-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.master-map-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.master-map-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.master-map-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.map-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.map-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+  /* 기본: 미진행 */
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s;
+}
+
+.map-node.in-progress .map-circle {
+  background: rgba(79, 195, 247, 0.15);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+}
+
+.map-node.mastered .map-circle {
+  background: var(--gradient-green);
+  border-color: transparent;
+  color: #121212;
+  box-shadow: var(--shadow-glow-green);
+}
+
+.map-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 .stats-overview {
   display: flex;
   justify-content: center;

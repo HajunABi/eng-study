@@ -175,13 +175,13 @@
           <!-- JS로 채워짐 -->
         </div>
         <div class="home-actions" style="margin-top: 16px;">
-          <button class="action-btn action-primary" onclick="startLearnFlashcards()">
-            <span class="btn-icon">📝</span>
-            플래시카드로 암기 확인
+          <button class="qg-btn qg-exam" onclick="showScreen('test')">
+            <div class="qg-icon">📝</div>
+            <div>실전 테스트</div>
           </button>
-          <button class="action-btn action-secondary" onclick="showScreen('learn')">
-            <span class="btn-icon">←</span>
-            Day 목록으로
+          <button class="qg-btn qg-guide" onclick="startScenarioMode()">
+            <div class="qg-icon">🎭</div>
+            <div>시나리오 모드</div>
           </button>
         </div>
       </div>
@@ -194,21 +194,24 @@
 
         <div class="card-container">
           <div class="sentence-card" id="learn-card">
+            <div class="card-feedback" id="learn-card-feedback"></div>
             <!-- 플래시카드 즐겨찾기 버튼 -->
             <button class="icon-btn star-btn" data-id=""
               onclick="toggleStar(parseInt(this.getAttribute('data-id')), event)">☆</button>
-            <div class="card-front" id="card-front">
-              <div class="card-number" id="card-number">#1</div>
-              <div class="card-korean" id="card-korean">한국어 문장</div>
-              <div class="card-hint">탭하여 영어 확인</div>
-            </div>
-            <div class="card-back" id="card-back" style="display:none">
-              <div class="card-number" id="card-number-back">#1</div>
-              <div class="card-english" id="card-english">English sentence</div>
-              <div class="card-korean-small" id="card-korean-back">한국어 문장</div>
-              <button class="tts-btn" onclick="event.stopPropagation(); speakEnglish()">
-                🔊 발음 듣기
-              </button>
+            <div class="card-inner" id="learn-card-inner">
+              <div class="card-face card-front" id="card-front">
+                <div class="card-number" id="card-number">#1</div>
+                <div class="card-korean" id="card-korean">한국어 문장</div>
+                <div class="card-hint">탭하여 영어 확인</div>
+              </div>
+              <div class="card-face card-back" id="card-back">
+                <div class="card-number" id="card-number-back">#1</div>
+                <div class="card-english" id="card-english">English sentence</div>
+                <div class="card-korean-small" id="card-korean-back">한국어 문장</div>
+                <button class="tts-btn" onclick="event.stopPropagation(); speakEnglish()">
+                  🔊 발음 듣기
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -242,7 +245,8 @@
             <div class="complete-stat-label">복습 필요</div>
           </div>
         </div>
-        <button class="action-btn action-primary" onclick="showScreen('review')">복습하러 가기</button>
+        <!-- 동적 CTA 영역: JS로 채움 -->
+        <div id="complete-cta"></div>
         <button class="action-btn action-secondary" onclick="showScreen('home')" style="margin-top:10px">홈으로</button>
       </div>
     </div>
@@ -276,21 +280,24 @@
 
         <div class="card-container">
           <div class="sentence-card" id="review-card">
+            <div class="card-feedback" id="review-card-feedback"></div>
             <!-- 플래시카드 즐겨찾기 버튼 -->
             <button class="icon-btn star-btn" data-id=""
               onclick="toggleStar(parseInt(this.getAttribute('data-id')), event)">☆</button>
-            <div class="card-front" id="review-card-front">
-              <div class="card-number" id="review-card-number">#1</div>
-              <div class="card-korean" id="review-card-korean">한국어 문장</div>
-              <div class="card-hint">탭하여 영어 확인</div>
-            </div>
-            <div class="card-back" id="review-card-back" style="display:none">
-              <div class="card-number" id="review-card-number-back">#1</div>
-              <div class="card-english" id="review-card-english">English sentence</div>
-              <div class="card-korean-small" id="review-card-korean-back">한국어 문장</div>
-              <button class="tts-btn" onclick="event.stopPropagation(); speakReviewEnglish()">
-                🔊 발음 듣기
-              </button>
+            <div class="card-inner" id="review-card-inner">
+              <div class="card-face card-front" id="review-card-front">
+                <div class="card-number" id="review-card-number">#1</div>
+                <div class="card-korean" id="review-card-korean">한국어 문장</div>
+                <div class="card-hint">탭하여 영어 확인</div>
+              </div>
+              <div class="card-face card-back" id="review-card-back">
+                <div class="card-number" id="review-card-number-back">#1</div>
+                <div class="card-english" id="review-card-english">English sentence</div>
+                <div class="card-korean-small" id="review-card-korean-back">한국어 문장</div>
+                <button class="tts-btn" onclick="event.stopPropagation(); speakReviewEnglish()">
+                  🔊 발음 듣기
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -448,6 +455,14 @@
         <h2>📊 학습 통계</h2>
       </div>
 
+      <!-- 15일 마스터 맵 -->
+      <div class="master-map-wrap">
+        <div class="master-map-title">📍 15일 진행 마스터 맵</div>
+        <div class="master-map-scroll" id="master-map-scroll">
+          <!-- JS로 동적 렌더링 -->
+        </div>
+      </div>
+
       <div class="stats-overview">
         <div class="stats-circle-wrap">
           <svg class="stats-circle" viewBox="0 0 120 120">
@@ -586,6 +601,27 @@
           style="margin-top:20px; width:100%;">확인했어요!</button>
       </div>
     </div>
+
+    <!-- ============ SCENARIO SCREEN (신규) ============ -->
+    <div id="screen-scenario" class="screen">
+      <div class="learn-header scenario-header">
+        <button class="back-btn" onclick="exitScenario()">← 나가기</button>
+        <h2 id="scenario-title">Day 1 시뮬레이션</h2>
+        <div class="learn-progress">
+          <span id="scenario-current">0</span>/<span id="scenario-total">10</span>
+        </div>
+      </div>
+
+      <div class="scenario-container" id="scenario-chat">
+        <!-- JS로 말풍선 주입 -->
+      </div>
+
+      <div class="scenario-actions" id="scenario-actions">
+        <button class="action-btn action-primary" id="scenario-next-btn" onclick="nextScenarioStep()">
+          대화 시작하기 플레이 ▶
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="data.js"></script>
@@ -595,6 +631,7 @@
   <script src="data5.js"></script>
   <script src="data6.js"></script>
   <script src="app.js"></script>
+  <script src="scenario.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
