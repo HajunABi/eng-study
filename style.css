@@ -144,15 +144,19 @@ body {
 
 .title-icon {
   font-size: 32px;
-  display: block;
-  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
   -webkit-text-fill-color: initial;
+  filter: drop-shadow(0 0 16px rgba(79, 195, 247, 0.4));
 }
 
 .app-subtitle {
   color: var(--text-secondary);
-  font-size: 14px;
-  margin-top: 8px;
+  font-size: 15px;
+  margin-top: 10px;
+  letter-spacing: 0.5px;
+  opacity: 0.9;
 }
 
 .home-stats-grid {
@@ -163,10 +167,13 @@ body {
 }
 
 .stat-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
+  background: rgba(22, 33, 62, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
   transition: var(--transition);
 }
 
@@ -365,9 +372,10 @@ body {
 
 .action-btn {
   width: 100%;
-  padding: 16px;
+  padding: 18px 20px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 50px;
+  /* Pill shape */
   font-size: 16px;
   font-weight: 700;
   font-family: inherit;
@@ -376,7 +384,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .action-primary {
@@ -395,9 +403,12 @@ body {
 }
 
 .action-secondary {
-  background: var(--bg-card);
+  background: rgba(30, 42, 74, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
 }
 
 .action-secondary:hover {
