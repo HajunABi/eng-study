@@ -104,6 +104,11 @@
           <span class="btn-icon">⭐</span>
           내 단어장
         </button>
+        <button class="action-btn action-tertiary" onclick="showGuide()"
+          style="background: rgba(100,200,255,0.1); color: #64c8ff; border: 1px solid rgba(100,200,255,0.2);">
+          <span class="btn-icon">📖</span>
+          사용법
+        </button>
       </div>
     </div>
 
@@ -177,6 +182,9 @@
             알아요!
           </button>
         </div>
+        <button class="undo-btn" id="learn-undo-btn" onclick="undoLearnCard()" style="display:none">
+          ◀ 이전 카드로
+        </button>
       </div>
 
       <!-- Learn Complete -->
@@ -256,6 +264,9 @@
             맞았어요!
           </button>
         </div>
+        <button class="undo-btn" id="review-undo-btn" onclick="undoReviewCard()" style="display:none">
+          ◀ 이전 카드로
+        </button>
       </div>
 
       <div id="review-complete" class="complete-view" style="display:none">
@@ -474,6 +485,52 @@
 
       <div class="preview-list" id="starred-list">
         <!-- JS로 렌더링 -->
+      </div>
+    </div>
+
+    <!-- ============ GUIDE MODAL ============ -->
+    <div id="guide-overlay" class="guide-overlay" style="display:none" onclick="closeGuide()">
+      <div class="guide-modal" onclick="event.stopPropagation()">
+        <button class="guide-close" onclick="closeGuide()">✕</button>
+        <h2 style="text-align:center; margin-bottom:16px;">📖 사용법</h2>
+        <div class="guide-step">
+          <div class="guide-num">1</div>
+          <div class="guide-content">
+            <strong>사전학습</strong>
+            <p>Day를 선택하면 문장 목록이 나옵니다.<br>🔊를 눌러 원어민 발음을 들으며 익히세요.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">2</div>
+          <div class="guide-content">
+            <strong>플래시카드 암기</strong>
+            <p>한국어를 보고 영어를 떠올려보세요.<br>👉 <b>오른쪽 스와이프</b> = 알아요<br>👈 <b>왼쪽 스와이프</b> = 모르겠어요<br>중간에 나가도 진행 상태가 저장됩니다!</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">3</div>
+          <div class="guide-content">
+            <strong>복습</strong>
+            <p>틀린 문장은 시간이 지나면 자동으로 복습 목록에 나타납니다.<br>간격 반복(Leitner) 알고리즘이 최적 타이밍을 잡아줍니다.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">4</div>
+          <div class="guide-content">
+            <strong>마스터 달성! 🏆</strong>
+            <p>같은 문장을 <b>5단계 연속 정답</b>하면 마스터!<br>틀리면 1단계로 돌아가니 꾸준히 복습하세요.</p>
+          </div>
+        </div>
+        <div class="guide-box-diagram">
+          <div class="guide-box-title">마스터까지의 여정</div>
+          <div class="guide-boxes">
+            <span class="gbox">1단계</span>→<span class="gbox">2단계</span>→<span class="gbox">3단계</span>→<span
+              class="gbox">4단계</span>→<span class="gbox gbox-master">🏆 마스터</span>
+          </div>
+          <div class="guide-box-note">틀리면 1단계로!</div>
+        </div>
+        <button class="action-btn action-primary" onclick="closeGuide()"
+          style="margin-top:20px; width:100%;">확인했어요!</button>
       </div>
     </div>
   </div>

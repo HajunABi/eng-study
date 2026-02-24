@@ -1436,3 +1436,148 @@ body {
   font-size: 14px;
   flex-shrink: 0;
 }
+
+/* ========== Guide Modal ========== */
+.guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.guide-modal {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  border: 1px solid rgba(79, 195, 247, 0.2);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(79, 195, 247, 0.15);
+}
+
+.guide-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.guide-step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+
+.guide-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.guide-content {
+  flex: 1;
+}
+
+.guide-content strong {
+  color: var(--accent-blue);
+  font-size: 15px;
+}
+
+.guide-content p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+
+.guide-box-diagram {
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid rgba(79, 195, 247, 0.15);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.guide-box-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.guide-boxes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.gbox {
+  background: var(--bg-card);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.gbox-master {
+  background: var(--gradient-green);
+  color: #0f0f23;
+}
+
+.guide-box-note {
+  font-size: 11px;
+  color: var(--accent-red);
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+/* ========== Undo Button ========== */
+.undo-btn {
+  display: block;
+  margin: 12px auto 0;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.undo-btn:hover,
+.undo-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
