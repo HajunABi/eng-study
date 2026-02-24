@@ -134,27 +134,6 @@
           </div>
           <span class="qg-label">가이드</span>
         </button>
-        <button class="qg-btn qg-scenario" onclick="startScenarioMode()">
-          <div class="qg-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" width="28" height="28">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <span class="qg-label">시나리오</span>
-        </button>
-        <button class="qg-btn qg-test" onclick="showScreen('test')">
-          <div class="qg-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" width="28" height="28">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-          </div>
-          <span class="qg-label">테스트</span>
-        </button>
       </div>
 
       <!-- Day별 커리큘럼 -->
@@ -615,34 +594,7 @@
       </div>
     </div>
 
-    <!-- ============ SCENARIO SCREEN ============ -->
-    <div id="screen-scenario" class="screen">
-      <div class="learn-header">
-        <button class="back-btn" onclick="exitScenario()">← 나가기</button>
-        <h2 id="scenario-title">🎭 시나리오</h2>
-        <div class="learn-progress">
-          <span id="scenario-current">0</span>/<span id="scenario-total">10</span>
-        </div>
-      </div>
 
-      <!-- Day 선택 화면 -->
-      <div id="scenario-day-select">
-        <p class="preview-desc">시나리오를 연습할 Day를 선택하세요.<br>각 Day의 처음 10문장으로 가상 회의 대화를 시뮬레이션합니다.</p>
-        <div class="day-select-grid" id="scenario-day-grid">
-          <!-- JS로 채워짐 -->
-        </div>
-      </div>
-
-      <!-- 대화 영역 (선택 후 표시) -->
-      <div id="scenario-play" style="display:none">
-        <div class="scenario-container" id="scenario-chat"></div>
-        <div class="scenario-actions" id="scenario-actions">
-          <button class="action-btn action-primary" id="scenario-next-btn" onclick="nextScenarioStep()">
-            대화 시작 ▶
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script src="data.js"></script>
@@ -652,7 +604,7 @@
   <script src="data5.js"></script>
   <script src="data6.js"></script>
   <script src="app.js"></script>
-  <script src="scenario.js"></script>
+
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
