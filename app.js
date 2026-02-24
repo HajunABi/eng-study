@@ -331,11 +331,26 @@ function renderHome() {
         else greetEl.textContent = 'Good evening 🌙';
     }
 
-    // 마스터 문장 카드 클릭 → 마스터 문장 목록 화면으로
-    const masterCard = document.querySelector('.stat-total');
+    // 대시보드 카드 클릭 이벤트
+    const masterCard = document.querySelector('.dash-master');
     if (masterCard) {
         masterCard.style.cursor = mastered > 0 ? 'pointer' : 'default';
         masterCard.onclick = mastered > 0 ? () => showMasteredList() : null;
+    }
+    const reviewCard = document.querySelector('.dash-review');
+    if (reviewCard) {
+        reviewCard.style.cursor = reviewCount > 0 ? 'pointer' : 'default';
+        reviewCard.onclick = reviewCount > 0 ? () => showScreen('review') : null;
+    }
+    const streakCard = document.querySelector('.dash-streak');
+    if (streakCard) {
+        streakCard.style.cursor = 'pointer';
+        streakCard.onclick = () => {
+            const msg = appState.streak > 0
+                ? `🔥 ${appState.streak}일 연속 학습 중! 계속 파이팅!`
+                : '오늘 학습을 시작하면 연속 학습 1일이 됩니다!';
+            showToast(msg);
+        };
     }
 
     // Day list
@@ -1448,4 +1463,18 @@ function undoReviewCard() {
     // Undo 버튼 숨김 처리
     const undoBtn = document.getElementById('review-undo-btn');
     if (undoBtn) undoBtn.style.display = reviewHistory.length > 0 ? '' : 'none';
+}
+
+// ---- Toast 알림 ----
+function showToast(msg) {
+    let toast = document.getElementById('app-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        toast.className = 'app-toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
 }
