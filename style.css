@@ -2059,3 +2059,155 @@ body {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ========== 사전학습 하단 고정 바 ========== */
+.preview-sticky-bar {
+  position: sticky;
+  bottom: 56px;
+  background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
+  padding: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+/* ========== 듣기 모드 플레이어 ========== */
+.listen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listen-player {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.listen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.listen-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.listen-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.listen-phase {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  margin-bottom: 16px;
+  padding: 6px 16px;
+  background: rgba(79, 195, 247, 0.1);
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.listen-progress-wrap {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.listen-progress-bar {
+  height: 100%;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  width: 0%;
+}
+
+.listen-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+.listen-sentence {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.listen-en {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-blue);
+  font-family: 'Inter', sans-serif;
+  line-height: 1.4;
+}
+
+.listen-ko {
+  font-size: 16px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.listen-repeat {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  min-height: 18px;
+}
+
+.listen-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.listen-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listen-btn:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.listen-btn-main {
+  width: 68px;
+  height: 68px;
+  font-size: 28px;
+  background: var(--gradient-primary);
+  border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}

@@ -179,10 +179,16 @@
             <span class="btn-icon">📝</span>
             플래시카드로 암기 확인
           </button>
-          <button class="action-btn action-secondary" onclick="showScreen('learn')">
-            <span class="btn-icon">←</span>
-            Day 목록으로
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="action-btn action-secondary" onclick="startListenMode()" style="flex:1">
+              <span class="btn-icon">🎧</span>
+              듣기 모드
+            </button>
+            <button class="action-btn action-secondary" onclick="showScreen('learn')" style="flex:1">
+              <span class="btn-icon">←</span>
+              Day 목록
+            </button>
+          </div>
         </div>
       </div>
 
@@ -594,6 +600,30 @@
       </div>
     </div>
 
+    <!-- ============ LISTEN MODE PLAYER ============ -->
+    <div id="listen-overlay" class="listen-overlay" style="display:none">
+      <div class="listen-player">
+        <div class="listen-header">
+          <h3 id="listen-title">🎧 Day 1 듣기</h3>
+          <button class="listen-close" onclick="stopListenMode()">✕</button>
+        </div>
+        <div class="listen-phase" id="listen-phase">Phase 1: 영어 3회 반복</div>
+        <div class="listen-progress-wrap">
+          <div class="listen-progress-bar" id="listen-progress-bar"></div>
+        </div>
+        <div class="listen-count" id="listen-count">0 / 60</div>
+        <div class="listen-sentence">
+          <div class="listen-en" id="listen-en">English sentence</div>
+          <div class="listen-ko" id="listen-ko">한국어 문장</div>
+        </div>
+        <div class="listen-repeat" id="listen-repeat"></div>
+        <div class="listen-controls">
+          <button class="listen-btn" onclick="listenPrev()">⏮</button>
+          <button class="listen-btn listen-btn-main" id="listen-play-btn" onclick="toggleListenPause()">⏸</button>
+          <button class="listen-btn" onclick="listenNext()">⏭</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 

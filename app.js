@@ -1582,3 +1582,250 @@ function showToast(msg) {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 2200);
 }
+
+// ==========================================
+// 🎧 듣기 모드 (Day 전체 자동 재생)
+// Phase 1: 영어 3회 반복 (모든 문장)
+// Phase 2: 영어 1회 + 한국어 1회 (모든 문장)
+// ==========================================
+
+let listenSentences = [];
+let listenPhase = 1;        // 1 or 2
+let listenSentIdx = 0;      // 현재 문장 인덱스
+let listenRepeat = 0;       // Phase1에서 현재 반복 횟수 (0,1,2)
+let listenSubStep = 0;      // Phase2에서 0=EN, 1=KO
+let listenPaused = false;
+let listenActive = false;
+let listenAudio = null;     // 현재 재생 중인 Audio 객체
+let listenDay = 0;
+let listenTimeout = null;
+
+function startListenMode() {
+    if (!currentLearnCards || currentLearnCards.length === 0) return;
+
+    listenSentences = [...currentLearnCards].sort((a, b) => a.id - b.id);
+    listenDay = currentLearnDay;
+    listenPhase = 1;
+    listenSentIdx = 0;
+    listenRepeat = 0;
+    listenSubStep = 0;
+    listenPaused = false;
+    listenActive = true;
+
+    // UI 표시
+    document.getElementById('listen-overlay').style.display = 'flex';
+    document.getElementById('listen-title').textContent = `🎧 Day ${listenDay} 듣기`;
+    document.getElementById('listen-play-btn').textContent = '⏸';
+
+    updateListenUI();
+    playCurrentListenStep();
+}
+
+function stopListenMode() {
+    listenActive = false;
+    listenPaused = false;
+    if (listenAudio) { listenAudio.pause(); listenAudio = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; }
+    document.getElementById('listen-overlay').style.display = 'none';
+}
+
+function toggleListenPause() {
+    if (!listenActive) return;
+    listenPaused = !listenPaused;
+    document.getElementById('listen-play-btn').textContent = listenPaused ? '▶' : '⏸';
+
+    if (listenPaused) {
+        if (listenAudio) listenAudio.pause();
+        if ('speechSynthesis' in window) window.speechSynthesis.pause();
+        if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; }
+    } else {
+        if (listenAudio) listenAudio.play().catch(() => { });
+        if ('speechSynthesis' in window) window.speechSynthesis.resume();
+        // 만약 오디오 없이 대기 중이었다면 다시 재생
+        if (!listenAudio && !window.speechSynthesis.speaking) {
+            playCurrentListenStep();
+        }
+    }
+}
+
+function listenNext() {
+    if (!listenActive) return;
+    if (listenAudio) { listenAudio.pause(); listenAudio = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; }
+
+    // 다음 문장으로
+    listenRepeat = 0;
+    listenSubStep = 0;
+    listenSentIdx++;
+    if (listenSentIdx >= listenSentences.length) {
+        if (listenPhase === 1) {
+            // Phase 2로 전환
+            listenPhase = 2;
+            listenSentIdx = 0;
+        } else {
+            // 완료
+            finishListenMode();
+            return;
+        }
+    }
+    updateListenUI();
+    if (!listenPaused) playCurrentListenStep();
+}
+
+function listenPrev() {
+    if (!listenActive) return;
+    if (listenAudio) { listenAudio.pause(); listenAudio = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (listenTimeout) { clearTimeout(listenTimeout); listenTimeout = null; }
+
+    listenRepeat = 0;
+    listenSubStep = 0;
+    if (listenSentIdx > 0) listenSentIdx--;
+    updateListenUI();
+    if (!listenPaused) playCurrentListenStep();
+}
+
+function updateListenUI() {
+    const sent = listenSentences[listenSentIdx];
+    if (!sent) return;
+
+    document.getElementById('listen-en').textContent = sent.en;
+    document.getElementById('listen-ko').textContent = sent.ko;
+
+    if (listenPhase === 1) {
+        document.getElementById('listen-phase').textContent = 'Phase 1: 영어 3회 반복';
+        document.getElementById('listen-repeat').textContent = `반복 ${listenRepeat + 1} / 3`;
+    } else {
+        document.getElementById('listen-phase').textContent = 'Phase 2: 영어 + 한국어';
+        document.getElementById('listen-repeat').textContent = listenSubStep === 0 ? '🔊 English' : '🔊 한국어';
+    }
+
+    // 전체 진행도 계산
+    const total = listenSentences.length;
+    let progress;
+    if (listenPhase === 1) {
+        progress = (listenSentIdx / total) * 50; // Phase1 = 0~50%
+    } else {
+        progress = 50 + (listenSentIdx / total) * 50; // Phase2 = 50~100%
+    }
+    document.getElementById('listen-progress-bar').style.width = progress + '%';
+    document.getElementById('listen-count').textContent =
+        `${listenPhase === 1 ? listenSentIdx + 1 : total + listenSentIdx + 1} / ${total * 2}`;
+}
+
+function playCurrentListenStep() {
+    if (!listenActive || listenPaused) return;
+    const sent = listenSentences[listenSentIdx];
+    if (!sent) return;
+
+    updateListenUI();
+
+    if (listenPhase === 1) {
+        // Phase 1: 영어 3회
+        playEnglishAudio(sent, () => {
+            if (!listenActive || listenPaused) return;
+            listenRepeat++;
+            if (listenRepeat < 3) {
+                // 0.8초 간격 후 다음 반복
+                updateListenUI();
+                listenTimeout = setTimeout(() => playCurrentListenStep(), 800);
+            } else {
+                // 3회 완료 → 다음 문장 (1.5초 간격)
+                listenRepeat = 0;
+                listenSentIdx++;
+                if (listenSentIdx >= listenSentences.length) {
+                    // Phase 2로 전환
+                    listenPhase = 2;
+                    listenSentIdx = 0;
+                    listenSubStep = 0;
+                    updateListenUI();
+                    showToast('🎧 Phase 2: 영어 + 한국어');
+                    listenTimeout = setTimeout(() => playCurrentListenStep(), 2000);
+                } else {
+                    updateListenUI();
+                    listenTimeout = setTimeout(() => playCurrentListenStep(), 1500);
+                }
+            }
+        });
+    } else {
+        // Phase 2: 영어 1회 → 한국어 1회
+        if (listenSubStep === 0) {
+            playEnglishAudio(sent, () => {
+                if (!listenActive || listenPaused) return;
+                listenSubStep = 1;
+                updateListenUI();
+                listenTimeout = setTimeout(() => playCurrentListenStep(), 800);
+            });
+        } else {
+            playKoreanTTS(sent.ko, () => {
+                if (!listenActive || listenPaused) return;
+                listenSubStep = 0;
+                listenSentIdx++;
+                if (listenSentIdx >= listenSentences.length) {
+                    finishListenMode();
+                } else {
+                    updateListenUI();
+                    listenTimeout = setTimeout(() => playCurrentListenStep(), 1500);
+                }
+            });
+        }
+    }
+}
+
+function playEnglishAudio(sent, onEnd) {
+    const audioPath = `audio/${sent.id}.mp3`;
+    listenAudio = new Audio(audioPath);
+    listenAudio.onended = () => { listenAudio = null; onEnd(); };
+    listenAudio.onerror = () => {
+        // MP3 실패 → SpeechSynthesis 폴백
+        listenAudio = null;
+        if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(sent.en);
+            u.lang = 'en-US';
+            u.rate = 0.85;
+            u.onend = onEnd;
+            window.speechSynthesis.speak(u);
+        } else {
+            onEnd();
+        }
+    };
+    listenAudio.play().catch(() => {
+        listenAudio = null;
+        if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(sent.en);
+            u.lang = 'en-US';
+            u.rate = 0.85;
+            u.onend = onEnd;
+            window.speechSynthesis.speak(u);
+        } else {
+            onEnd();
+        }
+    });
+}
+
+function playKoreanTTS(text, onEnd) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ko-KR';
+        u.rate = 0.9;
+        u.onend = onEnd;
+        window.speechSynthesis.speak(u);
+    } else {
+        onEnd();
+    }
+}
+
+function finishListenMode() {
+    document.getElementById('listen-progress-bar').style.width = '100%';
+    document.getElementById('listen-phase').textContent = '✅ 듣기 완료!';
+    document.getElementById('listen-en').textContent = '🎉';
+    document.getElementById('listen-ko').textContent = `Day ${listenDay} 전체 듣기가 끝났습니다.`;
+    document.getElementById('listen-repeat').textContent = '';
+    document.getElementById('listen-count').textContent = '';
+    document.getElementById('listen-play-btn').textContent = '▶';
+    listenActive = false;
+    showToast('🎧 듣기 모드 완료!');
+}
