@@ -11,7 +11,9 @@ const COURSES = {
         heroSub: '1,000 sentences · 15-day curriculum',
         emoji: '🏢',
         getData: () => SENTENCES,
-        storageKey: 'eps_eng_master'
+        storageKey: 'eps_eng_master',
+        dayNames: DAY_NAMES,       // from data.js
+        dayNamesEn: DAY_NAMES_EN   // from data.js
     },
     travel: {
         id: 'travel',
@@ -20,7 +22,13 @@ const COURSES = {
         heroSub: '275 sentences · 5-day curriculum',
         emoji: '✈️',
         getData: () => SENTENCES_TRAVEL,
-        storageKey: 'travel_eng_master'
+        storageKey: 'travel_eng_master',
+        dayNames: {
+            1: "공항 & 입국심사", 2: "교통 & 길찾기", 3: "호텔 & 숙소", 4: "식당 & 음식 주문", 5: "쇼핑 & 긴급상황"
+        },
+        dayNamesEn: {
+            1: "Airport & Immigration", 2: "Transportation & Directions", 3: "Hotel & Accommodation", 4: "Restaurant & Food", 5: "Shopping & Emergencies"
+        }
     },
     hospital: {
         id: 'hospital',
@@ -29,12 +37,23 @@ const COURSES = {
         heroSub: '275 sentences · 5-day curriculum',
         emoji: '🏥',
         getData: () => SENTENCES_HOSPITAL,
-        storageKey: 'hospital_eng_master'
+        storageKey: 'hospital_eng_master',
+        dayNames: {
+            1: "접수 & 예약 확인", 2: "보험 & 서류 안내", 3: "시술 & 진료 안내", 4: "결제 & 택스프리", 5: "재진 예약 & 일반 안내"
+        },
+        dayNamesEn: {
+            1: "Reception & Appointments", 2: "Insurance & Documentation", 3: "Treatments & Procedures", 4: "Payment & Tax-free", 5: "Follow-up & General"
+        }
     }
 };
 
 let currentCourse = null; // 현재 선택된 코스 ID
 let ACTIVE_SENTENCES = []; // 현재 코스의 문장 배열 (기존 SENTENCES 대체)
+
+function getAudioPath(id) {
+    if (currentCourse === 'eps') return `audio/${id}.mp3`;
+    return `audio/${currentCourse}_${id}.mp3`;
+}
 
 // ---- Storage Keys ----
 let STORAGE_KEY = 'eps_eng_master';
@@ -279,7 +298,7 @@ function speak(id, textFallback, lang = 'en-US') {
     }
 
     // 파일 로컬 경로
-    const audioPath = `audio/${id}.mp3`;
+    const audioPath = getAudioPath(id);
     currentAudio = new Audio(audioPath);
 
     // 성공적으로 로드된 경우 재생
@@ -442,8 +461,8 @@ function renderHome() {
         const dayStudied = sentences.filter(s => appState.progress[s.id] && appState.progress[s.id].box >= 1).length;
         const percent = Math.round(dayStudied / sentences.length * 100);
 
-        const dayName = DAY_NAMES[day] || `Day ${day}`;
-        const dayNameEn = DAY_NAMES_EN[day] || '';
+        const dayName = COURSES[currentCourse].dayNames[day] || `Day ${day}`;
+        const dayNameEn = COURSES[currentCourse].dayNamesEn[day] || '';
 
         const div = document.createElement('div');
         div.className = 'day-item';
@@ -468,7 +487,7 @@ function renderLearnDaySelect() {
 
     days.forEach(day => {
         const sentences = getSentencesByDay(day);
-        const dayName = DAY_NAMES[day] || `Day ${day}`;
+        const dayName = COURSES[currentCourse].dayNames[day] || `Day ${day}`;
 
         const card = document.createElement('div');
         card.className = 'day-select-card';
@@ -927,6 +946,8 @@ function showReviewComplete() {
 function renderTestDayChips() {
     const days = getUniqueDays();
     const container = document.getElementById('test-day-chips');
+    container.innerHTML = '<button class="chip chip-active" onclick="toggleTestDay(0, this)">전체</button>';
+    testDays = [0]; // Reset test selection
     // Keep the "전체" chip, add day chips
     days.forEach(day => {
         const btn = document.createElement('button');
@@ -1854,7 +1875,7 @@ function playCurrentListenStep() {
 }
 
 function playEnglishAudio(sent, onEnd) {
-    const audioPath = `audio/${sent.id}.mp3`;
+    const audioPath = getAudioPath(sent.id);
     listenAudio = new Audio(audioPath);
     listenAudio.onended = () => { listenAudio = null; onEnd(); };
     listenAudio.onerror = () => {
