@@ -1,9 +1,43 @@
 // ==========================================
-// EPS 컨퍼런스콜 영어 마스터 - 메인 앱 로직
+// 영어 마스터 - 멀티코스 플랫폼
 // ==========================================
 
+// ---- Course Definitions ----
+const COURSES = {
+    eps: {
+        id: 'eps',
+        name: 'EPS 컨퍼런스콜',
+        heroTitle: 'EPS Conference Call<br><span class="hero-highlight">English Master</span>',
+        heroSub: '1,000 sentences · 15-day curriculum',
+        emoji: '🏢',
+        getData: () => SENTENCES,
+        storageKey: 'eps_eng_master'
+    },
+    travel: {
+        id: 'travel',
+        name: '여행 영어',
+        heroTitle: 'Travel English<br><span class="hero-highlight">Master</span>',
+        heroSub: '275 sentences · 5-day curriculum',
+        emoji: '✈️',
+        getData: () => SENTENCES_TRAVEL,
+        storageKey: 'travel_eng_master'
+    },
+    hospital: {
+        id: 'hospital',
+        name: '병원 직원 영어',
+        heroTitle: 'Hospital Staff<br><span class="hero-highlight">English Master</span>',
+        heroSub: '275 sentences · 5-day curriculum',
+        emoji: '🏥',
+        getData: () => SENTENCES_HOSPITAL,
+        storageKey: 'hospital_eng_master'
+    }
+};
+
+let currentCourse = null; // 현재 선택된 코스 ID
+let ACTIVE_SENTENCES = []; // 현재 코스의 문장 배열 (기존 SENTENCES 대체)
+
 // ---- Storage Keys ----
-const STORAGE_KEY = 'eps_eng_master';
+let STORAGE_KEY = 'eps_eng_master';
 
 // ---- App State ----
 let appState = {
@@ -49,17 +83,62 @@ let testWrongList = [];
 
 // ---- Initialize ----
 document.addEventListener('DOMContentLoaded', () => {
+    // 마지막으로 사용한 코스가 있으면 바로 진입
+    const lastCourse = localStorage.getItem('last_course');
+    if (lastCourse && COURSES[lastCourse]) {
+        selectCourse(lastCourse);
+    } else {
+        showCourseSelect();
+    }
+});
+
+// ---- Course Selection ----
+function showCourseSelect() {
+    document.getElementById('screen-courses').style.display = 'flex';
+    document.getElementById('navbar').style.display = 'none';
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+}
+
+function selectCourse(courseId) {
+    const course = COURSES[courseId];
+    if (!course) return;
+
+    currentCourse = courseId;
+    ACTIVE_SENTENCES = course.getData();
+    STORAGE_KEY = course.storageKey;
+
+    // 마지막 코스 저장
+    localStorage.setItem('last_course', courseId);
+
+    // 히어로 배너 업데이트
+    document.querySelector('.hero-title').innerHTML = course.heroTitle;
+    document.querySelector('.hero-sub').textContent = course.heroSub;
+
+    // 코스 선택 화면 숨기고 앱 표시
+    document.getElementById('screen-courses').style.display = 'none';
+    document.getElementById('navbar').style.display = '';
+
+    // 상태 로드 및 화면 초기화
+    appState = {
+        progress: {},
+        streak: 0,
+        lastStudyDate: null,
+        testHistory: [],
+        starredSentences: [],
+        learnSession: {}
+    };
     loadState();
     updateStreak();
     renderHome();
     renderLearnDaySelect();
     renderTestDayChips();
-    addSVGGradient();
-    // 최초 방문 시 가이드 자동 표시
-    if (!localStorage.getItem('eps_guide_seen')) {
+    showScreen('home');
+
+    // 최초 방문 시 가이드
+    if (!localStorage.getItem('guide_seen_' + courseId)) {
         showGuide();
     }
-});
+}
 
 // ---- Storage ----
 function loadState() {
@@ -178,7 +257,7 @@ function getReviewCards() {
         if (prog.box >= 1 && prog.box < 5) {
             const interval = BOX_INTERVALS[prog.box] || 0;
             if (daysSince(prog.lastReview) >= interval) {
-                due.push(SENTENCES.find(s => s.id === id));
+                due.push(ACTIVE_SENTENCES.find(s => s.id === id));
             }
         }
     }
@@ -293,18 +372,18 @@ window.addEventListener('popstate', (e) => {
 
 // ---- Unique Days ----
 function getUniqueDays() {
-    const days = [...new Set(SENTENCES.map(s => s.day))].sort((a, b) => a - b);
+    const days = [...new Set(ACTIVE_SENTENCES.map(s => s.day))].sort((a, b) => a - b);
     return days;
 }
 
 function getSentencesByDay(day) {
-    return SENTENCES.filter(s => s.day === day);
+    return ACTIVE_SENTENCES.filter(s => s.day === day);
 }
 
 // ---- Home Screen ----
 function renderHome() {
     const days = getUniqueDays();
-    const totalSentences = SENTENCES.length;
+    const totalSentences = ACTIVE_SENTENCES.length;
 
     // Count mastered (box 5)
     let mastered = 0;
@@ -720,7 +799,7 @@ function getNextUnlearnedDay(afterDay) {
 
 function startInstantReview() {
     if (learnUnknownList.length === 0) return;
-    const cards = learnUnknownList.map(id => SENTENCES.find(s => s.id === id)).filter(Boolean);
+    const cards = learnUnknownList.map(id => ACTIVE_SENTENCES.find(s => s.id === id)).filter(Boolean);
     currentLearnCards = cards;
     currentLearnIndex = 0;
     learnKnown = 0;
@@ -900,7 +979,7 @@ function startTest() {
     // Get sentences by selected days
     let pool = [];
     if (testDays.includes(0)) {
-        pool = [...SENTENCES];
+        pool = [...ACTIVE_SENTENCES];
     } else {
         testDays.forEach(d => {
             pool.push(...getSentencesByDay(d));
@@ -1202,7 +1281,7 @@ function renderStarredList() {
     }
 
     // ID 리스트를 기반으로 실제 데이터 매핑
-    const starredSentences = starredIds.map(id => SENTENCES.find(s => s.id === id)).filter(Boolean);
+    const starredSentences = starredIds.map(id => ACTIVE_SENTENCES.find(s => s.id === id)).filter(Boolean);
 
     starredSentences.forEach((card, idx) => {
         const item = document.createElement('div');
@@ -1226,7 +1305,7 @@ function renderStarredList() {
 
 // ---- Stats Screen ----
 function renderStats() {
-    const total = SENTENCES.length;
+    const total = ACTIVE_SENTENCES.length;
     const boxCounts = [0, 0, 0, 0, 0, 0]; // box 0-5
 
     // 마스터 맵 렌더링
@@ -1289,7 +1368,7 @@ function renderStats() {
     } else {
         hardList.innerHTML = '';
         allProgress.forEach(([id, prog], idx) => {
-            const sentence = SENTENCES.find(s => s.id === parseInt(id));
+            const sentence = ACTIVE_SENTENCES.find(s => s.id === parseInt(id));
             if (!sentence) return;
 
             const div = document.createElement('div');
@@ -1386,7 +1465,7 @@ function renderStarredList() {
     if (!list) return;
 
     const starred = appState.starredSentences
-        .map(id => SENTENCES.find(s => s.id === id))
+        .map(id => ACTIVE_SENTENCES.find(s => s.id === id))
         .filter(Boolean);
 
     if (countEl) countEl.textContent = starred.length;
@@ -1422,7 +1501,7 @@ function renderStarredList() {
 function showMasteredList() {
     const mastered = Object.entries(appState.progress)
         .filter(([id, p]) => p.box >= 5)
-        .map(([id]) => SENTENCES.find(s => s.id === parseInt(id)))
+        .map(([id]) => ACTIVE_SENTENCES.find(s => s.id === parseInt(id)))
         .filter(Boolean);
 
     const existing = document.getElementById('screen-mastered');
@@ -1488,7 +1567,7 @@ function showGuide() {
 
 function closeGuide(popHistory = true) {
     document.getElementById('guide-overlay').style.display = 'none';
-    localStorage.setItem('eps_guide_seen', 'true');
+    localStorage.setItem('guide_seen_' + (currentCourse || 'eps'), 'true');
     // 사용자가 X버튼으로 닫은 경우에만 히스토리 백 강제 실행 (물리 뒤로가기로 닫힌 경우는 패스)
     if (popHistory) {
         if (history.state && history.state.modal === 'guide') {

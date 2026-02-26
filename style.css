@@ -44,6 +44,154 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ========== 코스 선택 화면 ========== */
+.course-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.course-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.course-main-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.course-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.course-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.course-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(22, 33, 62, 0.6);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: inherit;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.course-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.course-card:active {
+  transform: scale(0.97);
+}
+
+.course-card:hover::before,
+.course-card:active::before {
+  opacity: 1;
+}
+
+.course-eps::before {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+}
+
+.course-eps {
+  border-color: rgba(102, 126, 234, 0.25);
+}
+
+.course-travel::before {
+  background: linear-gradient(135deg, rgba(79, 195, 247, 0.12), rgba(56, 239, 125, 0.12));
+}
+
+.course-travel {
+  border-color: rgba(79, 195, 247, 0.25);
+}
+
+.course-hospital::before {
+  background: linear-gradient(135deg, rgba(186, 104, 200, 0.12), rgba(255, 138, 128, 0.12));
+}
+
+.course-hospital {
+  border-color: rgba(186, 104, 200, 0.25);
+}
+
+.course-emoji {
+  font-size: 36px;
+  position: relative;
+  z-index: 1;
+}
+
+.course-name {
+  font-size: 18px;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.course-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 1;
+}
+
+.course-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+}
+
+.course-back-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition);
+}
+
+.course-back-btn:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 #app {
   max-width: 480px;
   margin: 0 auto;

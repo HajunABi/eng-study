@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0f0f23">
-  <title>EPS 컨퍼런스콜 영어 마스터</title>
+  <title>영어 마스터</title>
   <link rel="manifest" href="manifest.json">
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
@@ -17,6 +17,34 @@
 
 <body>
   <div id="app">
+    <!-- ============ COURSE SELECT SCREEN ============ -->
+    <div id="screen-courses" class="course-screen">
+      <div class="course-header">
+        <h1 class="course-main-title">🎓 영어 마스터</h1>
+        <p class="course-subtitle">마스터할 코스를 선택하세요</p>
+      </div>
+      <div class="course-grid">
+        <button class="course-card course-eps" onclick="selectCourse('eps')">
+          <div class="course-emoji">🏢</div>
+          <div class="course-name">EPS 컨퍼런스콜</div>
+          <div class="course-desc">15일 · 1000문장</div>
+          <div class="course-badge">비즈니스</div>
+        </button>
+        <button class="course-card course-travel" onclick="selectCourse('travel')">
+          <div class="course-emoji">✈️</div>
+          <div class="course-name">여행 영어</div>
+          <div class="course-desc">5일 · 275문장</div>
+          <div class="course-badge">여행</div>
+        </button>
+        <button class="course-card course-hospital" onclick="selectCourse('hospital')">
+          <div class="course-emoji">🏥</div>
+          <div class="course-name">병원 직원 영어</div>
+          <div class="course-desc">5일 · 275문장</div>
+          <div class="course-badge">의료</div>
+        </button>
+      </div>
+    </div>
+
     <!-- Navigation Bar -->
     <nav id="navbar">
       <div class="nav-items">
@@ -71,6 +99,7 @@
         <div class="hero-greeting" id="hero-greeting">Good evening</div>
         <h1 class="hero-title">EPS Conference Call<br><span class="hero-highlight">English Master</span></h1>
         <p class="hero-sub">1,000 sentences · 15-day curriculum</p>
+        <button class="course-back-btn" onclick="showCourseSelect()">📚 코스 변경</button>
       </div>
 
       <!-- 미니 대시보드 -->
@@ -633,6 +662,8 @@
   <script src="data4.js"></script>
   <script src="data5.js"></script>
   <script src="data6.js"></script>
+  <script src="data_travel.js"></script>
+  <script src="data_hospital.js"></script>
   <script src="app.js"></script>
 
   <script>
